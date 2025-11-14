@@ -1,0 +1,19 @@
+{
+  "name": "@chronocrypt/backend",
+  "version": "1.0.0",
+  "description": "ChronoCrypt KMS Backend API",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "start": "bun run dist/index.js",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "elysia": "^1.1.28"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.12",
+    "typescript": "^5.7.2"
+  }
+}
