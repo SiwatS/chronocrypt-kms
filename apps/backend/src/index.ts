@@ -479,7 +479,8 @@ const app = new Elysia()
       // Calculate key derivation stats
       const keyGenerations = allEntries.filter(e => e.eventType === 'KEY_GENERATION');
       const totalKeys = keyGenerations.reduce((sum, e) => {
-        return sum + (e.details?.keyCount || 0);
+        const details = e.details as { keyCount?: number } | null;
+        return sum + (details?.keyCount || 0);
       }, 0);
 
       const averageKeysPerRequest = keyGenerations.length > 0
