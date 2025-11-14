@@ -1,6 +1,6 @@
 # ChronoCrypt KMS
 
-A modern Key Management System built with Elysia and Next.js in a monorepo architecture.
+A web-based Key Management System for temporal data access control, built with Elysia and Next.js. Based on the [@siwats/chronocrypt](https://github.com/SiwatINC/chronocrypt) library, it implements asymmetric time-based encryption (ECIES + AES-GCM) with zero-knowledge authorization.
 
 ## Architecture
 
@@ -15,9 +15,21 @@ chronocrypt-kms/
 └── package.json        # Root workspace configuration
 ```
 
+## Features
+
+- **🔐 Temporal Access Control**: Time-slice based encryption with granular access authorization
+- **🔒 Asymmetric Security**: DataSource has public key only - cannot decrypt even if compromised
+- **✅ Access Request Workflow**: Submit, evaluate, and authorize access requests with policy enforcement
+- **📊 Comprehensive Audit Logging**: Track all authorization activities with detailed audit trails
+- **⚙️ Policy Management**: Extensible access control policies (whitelist, time-based, duration limits)
+- **🔑 Key Management**: Secure master keypair handling with time-specific key derivation
+- **📈 Statistics & Monitoring**: Real-time dashboards for system health and activity
+- **🔍 Zero-Knowledge Authorization**: KeyHolder authorizes without seeing encrypted data
+
 ## Tech Stack
 
 ### Backend
+- **@siwats/chronocrypt** - Asymmetric time-based encryption library
 - **Elysia** - Fast and ergonomic Bun-based web framework
 - **Bun** - JavaScript runtime and toolkit
 - **TypeScript** - Type safety
@@ -26,6 +38,13 @@ chronocrypt-kms/
 - **Next.js 15** - React framework with App Router
 - **React 18** - UI library
 - **TypeScript** - Type safety
+
+### Cryptography
+- **ECIES** - Elliptic Curve Integrated Encryption Scheme
+- **ECDH** - Elliptic Curve Diffie-Hellman (P-256/secp256r1)
+- **HKDF** - HMAC-based Key Derivation Function (RFC 5869)
+- **AES-GCM** - Advanced Encryption Standard - Galois/Counter Mode
+- **AES-KW** - AES Key Wrap (RFC 3394)
 
 ## Prerequisites
 
@@ -136,7 +155,9 @@ npm run type-check # Run TypeScript type checking
 ```
 apps/backend/
 ├── src/
-│   └── index.ts        # Main entry point
+│   ├── index.ts                # Main Elysia API server
+│   └── services/
+│       └── kms.ts             # KMS Service (wraps ChronoCrypt KeyHolder)
 ├── package.json
 └── tsconfig.json
 ```
@@ -155,14 +176,68 @@ apps/web/
 └── tsconfig.json
 ```
 
-## API Endpoints
+## API Documentation
 
-### Backend API
+### Base URL
 
-- `GET /` - API status and version
-- `GET /health` - Health check
-- `GET /api/keys` - List all keys
-- `POST /api/keys` - Create a new key
+```
+http://localhost:3001
+```
+
+### Root & Health
+
+- **GET /** - API information and available endpoints
+- **GET /api/health** - System health check
+
+### Access Request Management
+
+- **POST /api/access-requests** - Submit a new access request
+  ```json
+  {
+    "requesterId": "analyst-001",
+    "timeRange": {
+      "startTime": 1700000000000,
+      "endTime": 1700003600000
+    },
+    "purpose": "Data analysis",
+    "metadata": {}
+  }
+  ```
+
+- **GET /api/access-requests** - List access requests
+  - Query params: `requesterId`, `startTime`, `endTime`, `status`, `limit`, `offset`
+
+### Audit Logs
+
+- **GET /api/audit-logs** - Query audit logs with filtering
+  - Query params: `eventType`, `actor`, `startTime`, `endTime`, `success`, `limit`, `offset`
+  - Event types: `ACCESS_REQUEST`, `ACCESS_GRANTED`, `ACCESS_DENIED`, `KEY_GENERATION`, `KEY_DISTRIBUTION`, `DECRYPTION_ATTEMPT`
+
+- **GET /api/audit-logs/stats** - Get audit log statistics
+
+### Policy Management
+
+- **GET /api/policies** - List all access control policies
+- **GET /api/policies/:id** - Get a specific policy
+- **POST /api/policies** - Create a new custom policy
+- **DELETE /api/policies/:id** - Delete a custom policy
+- **PUT /api/policies/:id/enable** - Enable a policy
+- **PUT /api/policies/:id/disable** - Disable a policy
+
+### Key Management
+
+- **GET /api/keys/master-public** - Get master public key (for distribution to DataSources)
+- **GET /api/keys/status** - Get key management system status
+
+### Statistics
+
+- **GET /api/stats** - Get system statistics for dashboard
+  - Access requests (total, granted, denied, last 24h)
+  - Policies (total, enabled, disabled)
+  - Audit log (entries, success rate)
+  - Key management (keys derived, average per request)
+
+For detailed API documentation, see [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## Development
 

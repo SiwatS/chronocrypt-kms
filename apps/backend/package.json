@@ -10,7 +10,9 @@
     "test": "bun test"
   },
   "dependencies": {
-    "elysia": "^1.1.28"
+    "@siwats/chronocrypt": "latest",
+    "elysia": "^1.1.28",
+    "@elysiajs/cors": "^1.1.1"
   },
   "devDependencies": {
     "@types/bun": "^1.1.12",
