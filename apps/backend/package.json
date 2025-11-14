@@ -18,6 +18,7 @@
     "@siwats/chronocrypt": "latest",
     "elysia": "^1.1.28",
     "@elysiajs/cors": "^1.1.1",
+    "@elysiajs/swagger": "^1.1.5",
     "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
