@@ -1,0 +1,100 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Audit Log - Complete history of all authorization activities
+model AuditLog {
+  id         String   @id
+  timestamp  BigInt
+  eventType  String
+  actor      String
+  target     String?
+  startTime  BigInt?
+  endTime    BigInt?
+  success    Boolean
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([eventType])
+  @@index([actor])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Access Control Policies
+model Policy {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  priority    Int      @default(0)
+  enabled     Boolean  @default(true)
+  config      Json?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([priority])
+  @@index([enabled])
+  @@index([type])
+  @@map("policies")
+}
+
+// Master Keypair Storage (encrypted at rest)
+model MasterKey {
+  id              String    @id @default(cuid())
+  algorithm       String
+  curve           String
+  publicKeyJwk    Json
+  privateKeyJwk   Json      // Encrypted with MASTER_KEY_ENCRYPTION_KEY
+  createdAt       DateTime  @default(now())
+  rotatedAt       DateTime?
+  active          Boolean   @default(true)
+
+  @@index([active])
+  @@map("master_keys")
+}
+
+// Requester Management (for future use)
+model Requester {
+  id          String   @id @default(cuid())
+  requesterId String   @unique
+  name        String?
+  department  String?
+  email       String?
+  enabled     Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([enabled])
+  @@map("requesters")
+}
+
+// Access Request History (for tracking)
+model AccessRequest {
+  id          String   @id @default(cuid())
+  requesterId String
+  startTime   BigInt
+  endTime     BigInt
+  purpose     String?
+  metadata    Json?
+  granted     Boolean
+  denialReason String?
+  keyCount    Int?
+  createdAt   DateTime @default(now())
+
+  @@index([requesterId])
+  @@index([createdAt])
+  @@index([granted])
+  @@map("access_requests")
+}

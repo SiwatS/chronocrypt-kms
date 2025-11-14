@@ -7,15 +7,22 @@
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --outdir=dist --target=bun",
     "start": "bun run dist/index.js",
-    "test": "bun test"
+    "test": "bun test",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "bun run prisma/seed.ts"
   },
   "dependencies": {
     "@siwats/chronocrypt": "latest",
     "elysia": "^1.1.28",
-    "@elysiajs/cors": "^1.1.1"
+    "@elysiajs/cors": "^1.1.1",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@types/bun": "^1.1.12",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "prisma": "^5.22.0"
   }
 }
