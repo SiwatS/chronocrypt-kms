@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import kmsAPI, { type SystemStats, type AuditLogEntry } from '@/lib/api-client';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
   const [health, setHealth] = useState<any>(null);
+  const [user, setUser] = useState<{ username: string } | null>(null);
+  const [setupWarning, setSetupWarning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,20 +24,33 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [statsData, healthData, auditData] = await Promise.all([
+      const [statsData, healthData, auditData, sessionData, setupData] = await Promise.all([
         kmsAPI.getStats(),
         kmsAPI.getHealth(),
-        kmsAPI.getAuditLogs({ limit: 10 })
+        kmsAPI.getAuditLogs({ limit: 10 }),
+        kmsAPI.checkSession(),
+        kmsAPI.checkSetupRequired()
       ]);
 
       setStats(statsData);
       setHealth(healthData);
       setRecentActivity(auditData.entries);
+      setUser(sessionData.user || null);
+      setSetupWarning(setupData.setupRequired);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await kmsAPI.logout();
+      router.push('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
     }
   };
 
@@ -69,15 +86,46 @@ export default function Dashboard() {
   return (
     <div className="container">
       <main className="dashboard">
+        {setupWarning && (
+          <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+            <h3 style={{ color: '#92400e', margin: '0 0 0.5rem 0' }}>⚠️ Setup Required</h3>
+            <p style={{ color: '#92400e', margin: 0 }}>
+              You are using the default admin password. Please set a strong password via the ADMIN_PASSWORD environment variable.
+            </p>
+          </div>
+        )}
+
         <header className="dashboard-header">
           <div>
             <h1 className="dashboard-title">ChronoCrypt KMS</h1>
             <p className="dashboard-subtitle">Key Management System Dashboard</p>
           </div>
-          <div className="dashboard-status">
+          <div className="dashboard-status" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {user && (
+              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                Logged in as <strong>{user.username}</strong>
+              </span>
+            )}
             <span className={`status-badge ${health?.status === 'healthy' ? 'status-healthy' : 'status-error'}`}>
               {health?.status === 'healthy' ? '✓ Operational' : '⚠ Issues Detected'}
             </span>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.875rem',
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
+            >
+              Logout
+            </button>
           </div>
         </header>
 
