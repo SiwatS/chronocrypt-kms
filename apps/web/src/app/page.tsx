@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import kmsAPI, { type SystemStats, type AuditLogEntry } from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState<SystemStats | null>(null);
-  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [setupWarning, setSetupWarning] = useState(false);
@@ -24,19 +23,23 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [statsData, healthData, auditData, sessionData, setupData] = await Promise.all([
-        kmsAPI.getStats(),
-        kmsAPI.getHealth(),
-        kmsAPI.getAuditLogs({ limit: 10 }),
-        kmsAPI.checkSession(),
-        kmsAPI.checkSetupRequired()
+      const [statsRes, healthRes, auditRes, sessionRes, setupRes] = await Promise.all([
+        api.api.stats.get(),
+        api.api.health.get(),
+        api.api['audit-logs'].get({ query: { limit: '10' } }),
+        api.api.auth.session.get(),
+        api.api.auth['setup-required'].get()
       ]);
 
-      setStats(statsData);
-      setHealth(healthData);
-      setRecentActivity(auditData.entries);
-      setUser(sessionData.user || null);
-      setSetupWarning(setupData.setupRequired);
+      if (statsRes.error) throw new Error('Failed to load stats');
+      if (healthRes.error) throw new Error('Failed to load health');
+      if (auditRes.error) throw new Error('Failed to load audit logs');
+
+      setStats(statsRes.data);
+      setHealth(healthRes.data);
+      setRecentActivity(auditRes.data?.entries || []);
+      setUser(sessionRes.data?.user || null);
+      setSetupWarning(setupRes.data?.setupRequired || false);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -47,8 +50,10 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      await kmsAPI.logout();
-      router.push('/login');
+      const { error } = await api.api.auth.logout.post();
+      if (!error) {
+        router.push('/login');
+      }
     } catch (err) {
       console.error('Logout failed:', err);
     }
@@ -147,35 +152,19 @@ export default function Dashboard() {
                 <span className="detail-value">{stats?.accessRequests.denied || 0}</span>
               </div>
               <div className="metric-detail">
+                <span className="detail-label">Success Rate:</span>
+                <span className="detail-value">{grantRate}%</span>
+              </div>
+              <div className="metric-detail">
                 <span className="detail-label">Last 24h:</span>
                 <span className="detail-value">{stats?.accessRequests.last24Hours || 0}</span>
               </div>
             </div>
-            <div className="metric-footer">
-              Grant Rate: {grantRate}%
-            </div>
           </div>
 
           <div className="metric-card">
             <div className="metric-header">
-              <span className="metric-icon">🔑</span>
-              <h3>Key Derivation</h3>
-            </div>
-            <div className="metric-value">{stats?.keyManagement.totalKeysDerivied || 0}</div>
-            <div className="metric-details">
-              <div className="metric-detail">
-                <span className="detail-label">Avg per Request:</span>
-                <span className="detail-value">{stats?.keyManagement.averageKeysPerRequest || 0}</span>
-              </div>
-            </div>
-            <div className="metric-footer">
-              Time-specific keys generated
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <div className="metric-header">
-              <span className="metric-icon">📝</span>
+              <span className="metric-icon">📜</span>
               <h3>Audit Log</h3>
             </div>
             <div className="metric-value">{stats?.auditLog.totalEntries || 0}</div>
@@ -184,117 +173,126 @@ export default function Dashboard() {
                 <span className="detail-label">Success Rate:</span>
                 <span className="detail-value">{successRate}%</span>
               </div>
-            </div>
-            <div className="metric-footer">
-              All operations tracked
+              <div className="metric-detail">
+                <span className="detail-label">Recent Events:</span>
+                <span className="detail-value">{recentActivity.length}</span>
+              </div>
             </div>
           </div>
 
           <div className="metric-card">
             <div className="metric-header">
-              <span className="metric-icon">⚙️</span>
+              <span className="metric-icon">🔒</span>
               <h3>Policies</h3>
             </div>
             <div className="metric-value">{stats?.policies.total || 0}</div>
             <div className="metric-details">
               <div className="metric-detail">
                 <span className="detail-label">Enabled:</span>
-                <span className="detail-value">{stats?.policies.enabled || 0}</span>
+                <span className="detail-value status-healthy">{stats?.policies.enabled || 0}</span>
               </div>
               <div className="metric-detail">
                 <span className="detail-label">Disabled:</span>
                 <span className="detail-value">{stats?.policies.disabled || 0}</span>
               </div>
             </div>
-            <div className="metric-footer">
-              Active access control
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-header">
+              <span className="metric-icon">🔑</span>
+              <h3>Key Management</h3>
+            </div>
+            <div className="metric-value">{stats?.keyManagement.totalKeysDerivied || 0}</div>
+            <div className="metric-details">
+              <div className="metric-detail">
+                <span className="detail-label">Avg Keys/Request:</span>
+                <span className="detail-value">{stats?.keyManagement.averageKeysPerRequest || 0}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Recent Activity */}
+        <section className="activity-section">
+          <h2>Recent Activity</h2>
+          <div className="activity-table">
+            <div className="table-header">
+              <div className="table-row">
+                <div className="table-cell">Event</div>
+                <div className="table-cell">Actor</div>
+                <div className="table-cell">Time</div>
+                <div className="table-cell">Status</div>
+              </div>
+            </div>
+            <div className="table-body">
+              {recentActivity.length === 0 ? (
+                <div className="empty-state">No recent activity</div>
+              ) : (
+                recentActivity.map((entry: any) => (
+                  <div key={entry.id} className="table-row">
+                    <div className="table-cell">
+                      <span className="event-type">{entry.eventType}</span>
+                    </div>
+                    <div className="table-cell">{entry.actor}</div>
+                    <div className="table-cell">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </div>
+                    <div className="table-cell">
+                      <span className={`status-badge ${entry.success ? 'status-healthy' : 'status-error'}`}>
+                        {entry.success ? 'Success' : 'Failed'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* System Components */}
+        <section className="components-section">
+          <h2>System Components</h2>
+          <div className="components-grid">
+            <div className="component-card">
+              <h3>🔐 Key Holder</h3>
+              <p className="status-healthy">{health?.components.keyHolder}</p>
+            </div>
+            <div className="component-card">
+              <h3>📝 Audit Log</h3>
+              <p className="status-healthy">{health?.components.auditLog}</p>
+            </div>
+            <div className="component-card">
+              <h3>🛡️ Policy Engine</h3>
+              <p className="status-healthy">{health?.components.policyEngine}</p>
+            </div>
+            <div className="component-card">
+              <h3>🔓 Authentication</h3>
+              <p className="status-healthy">{health?.components.authentication}</p>
             </div>
           </div>
         </section>
 
         {/* Quick Actions */}
-        <section className="quick-actions">
+        <section className="actions-section">
           <h2>Quick Actions</h2>
-          <div className="action-buttons">
-            <Link href="/access-requests" className="action-button">
-              <span className="action-icon">🔐</span>
-              <span className="action-label">Submit Access Request</span>
-            </Link>
-            <Link href="/audit-logs" className="action-button">
+          <div className="actions-grid">
+            <button className="action-button">
               <span className="action-icon">📊</span>
-              <span className="action-label">View Audit Logs</span>
-            </Link>
-            <Link href="/policies" className="action-button">
-              <span className="action-icon">⚙️</span>
-              <span className="action-label">Manage Policies</span>
-            </Link>
-            <Link href="/keys" className="action-button">
+              <span>View Full Audit Log</span>
+            </button>
+            <button className="action-button">
+              <span className="action-icon">🔒</span>
+              <span>Manage Policies</span>
+            </button>
+            <button className="action-button">
               <span className="action-icon">🔑</span>
-              <span className="action-label">Key Management</span>
-            </Link>
-          </div>
-        </section>
-
-        {/* Recent Activity */}
-        <section className="recent-activity">
-          <h2>Recent Activity</h2>
-          {recentActivity.length > 0 ? (
-            <div className="activity-list">
-              {recentActivity.map((entry) => (
-                <div key={entry.id} className="activity-item">
-                  <div className="activity-icon">
-                    {entry.eventType === 'ACCESS_REQUEST' && '📥'}
-                    {entry.eventType === 'ACCESS_GRANTED' && '✅'}
-                    {entry.eventType === 'ACCESS_DENIED' && '❌'}
-                    {entry.eventType === 'KEY_GENERATION' && '🔑'}
-                    {entry.eventType === 'KEY_DISTRIBUTION' && '📤'}
-                  </div>
-                  <div className="activity-content">
-                    <div className="activity-title">{entry.eventType.replace(/_/g, ' ')}</div>
-                    <div className="activity-meta">
-                      Actor: {entry.actor}
-                      {entry.target && ` → Target: ${entry.target}`}
-                      <span className="activity-time">
-                        {new Date(entry.timestamp).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`activity-status ${entry.success ? 'status-success' : 'status-failure'}`}>
-                    {entry.success ? '✓' : '✗'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="no-data">No recent activity</p>
-          )}
-          <Link href="/audit-logs" className="view-all-link">
-            View All Activity →
-          </Link>
-        </section>
-
-        {/* System Status */}
-        <section className="system-status">
-          <h2>System Status</h2>
-          <div className="status-grid">
-            <div className="status-item">
-              <span className="status-label">Key Holder:</span>
-              <span className={`status-indicator ${health?.components.keyHolder === 'operational' ? 'indicator-healthy' : 'indicator-error'}`}>
-                {health?.components.keyHolder || 'unknown'}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Audit Log:</span>
-              <span className={`status-indicator ${health?.components.auditLog === 'operational' ? 'indicator-healthy' : 'indicator-error'}`}>
-                {health?.components.auditLog || 'unknown'}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Policy Engine:</span>
-              <span className={`status-indicator ${health?.components.policyEngine === 'operational' ? 'indicator-healthy' : 'indicator-error'}`}>
-                {health?.components.policyEngine || 'unknown'}
-              </span>
-            </div>
+              <span>View Master Key</span>
+            </button>
+            <button className="action-button">
+              <span className="action-icon">📈</span>
+              <span>Export Statistics</span>
+            </button>
           </div>
         </section>
       </main>
