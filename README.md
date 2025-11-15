@@ -51,8 +51,7 @@ chronocrypt-kms/
 Before you begin, ensure you have the following installed:
 
 - **Node.js** 18 or higher (for Next.js)
-- **Bun** latest version (for Elysia backend)
-- **npm** (comes with Node.js)
+- **Bun** latest version
 
 ### Installing Bun
 
@@ -76,7 +75,7 @@ cd chronocrypt-kms
 ### 2. Install dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 This will install dependencies for all workspaces (backend and web).
@@ -94,7 +93,7 @@ Edit `.env` if needed. Default values should work for local development.
 #### Option A: Start all services (recommended)
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 This will start both the backend (port 3001) and frontend (port 3000).
@@ -103,10 +102,10 @@ This will start both the backend (port 3001) and frontend (port 3000).
 
 ```bash
 # Terminal 1 - Backend
-npm run dev:backend
+bun run dev:backend
 
 # Terminal 2 - Frontend
-npm run dev:web
+bun run dev:web
 ```
 
 ### 5. Access the application
@@ -119,13 +118,13 @@ npm run dev:web
 
 ### Root Level
 
-- `npm run dev` - Start all development servers
-- `npm run dev:backend` - Start only the backend
-- `npm run dev:web` - Start only the frontend
-- `npm run build` - Build all applications
-- `npm run build:backend` - Build only the backend
-- `npm run build:web` - Build only the frontend
-- `npm run clean` - Remove all node_modules
+- `bun run dev` - Start all development servers
+- `bun run dev:backend` - Start only the backend
+- `bun run dev:web` - Start only the frontend
+- `bun run build` - Build all applications
+- `bun run build:backend` - Build only the backend
+- `bun run build:web` - Build only the frontend
+- `bun run clean` - Remove all node_modules
 
 ### Backend (apps/backend)
 
@@ -141,11 +140,11 @@ bun test         # Run tests
 
 ```bash
 cd apps/web
-npm run dev        # Start development server
-npm run build      # Build for production
-npm run start      # Start production server
-npm run lint       # Run linter
-npm run type-check # Run TypeScript type checking
+bun run dev        # Start development server
+bun run build      # Build for production
+bun run start      # Start production server
+bun run lint       # Run linter
+bun run type-check # Run TypeScript type checking
 ```
 
 ## Project Structure
@@ -269,7 +268,7 @@ Create shared packages in the `packages/` directory:
 ```bash
 mkdir -p packages/your-package
 cd packages/your-package
-npm init -y
+bun init
 ```
 
 Update root `package.json` workspaces if needed.
@@ -279,7 +278,7 @@ Update root `package.json` workspaces if needed.
 ### Build all applications
 
 ```bash
-npm run build
+bun run build
 ```
 
 ### Run production servers
@@ -291,7 +290,7 @@ bun run start
 
 # Frontend
 cd apps/web
-npm run start
+bun run start
 ```
 
 ## Troubleshooting
@@ -302,7 +301,7 @@ If ports 3000 or 3001 are already in use:
 
 **Backend**: Edit `apps/backend/src/index.ts` and change the port in `.listen(3001)`
 
-**Frontend**: Use a different port: `npm run dev:web -- -p 3002`
+**Frontend**: Use a different port: `bun run dev:web -- -p 3002`
 
 ### Bun not found
 
@@ -319,8 +318,8 @@ If not found, reinstall Bun or add it to your PATH.
 Try cleaning and reinstalling:
 
 ```bash
-npm run clean
-npm install
+bun run clean
+bun install
 ```
 
 ## Contributing

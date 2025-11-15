@@ -581,14 +581,14 @@ model Requester {
 
 ### Development
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 ### Production
 ```bash
-npm run build
-npm run start
+bun run build
+bun run start
 ```
 
 ### Environment Variables
