@@ -85,6 +85,7 @@ class KMSAPIClient {
     const url = `${this.baseURL}${endpoint}`;
     const response = await fetch(url, {
       ...options,
+      credentials: 'include', // Include cookies for authentication
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -92,11 +93,40 @@ class KMSAPIClient {
     });
 
     if (!response.ok) {
+      // Handle 401 Unauthorized - redirect to login
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      }
+
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(error.error || error.message || `HTTP ${response.status}`);
     }
 
     return response.json();
+  }
+
+  // Authentication
+  async login(username: string, password: string): Promise<{ success: boolean; user?: { username: string }; error?: string; message?: string }> {
+    return this.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+  }
+
+  async logout(): Promise<{ success: boolean; message: string }> {
+    return this.request('/api/auth/logout', {
+      method: 'POST',
+    });
+  }
+
+  async checkSession(): Promise<{ authenticated: boolean; user?: { username: string }; message?: string }> {
+    return this.request('/api/auth/session');
+  }
+
+  async checkSetupRequired(): Promise<{ setupRequired: boolean; message: string }> {
+    return this.request('/api/auth/setup-required');
   }
 
   // Access Requests
