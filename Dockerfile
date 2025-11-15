@@ -12,11 +12,16 @@ COPY apps/web/package.json ./apps/web/
 COPY apps/web/tsconfig.json ./apps/web/
 COPY apps/web/next.config.ts ./apps/web/
 
+# Copy backend source for type imports (Eden Treaty needs backend types)
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/backend/tsconfig.json ./apps/backend/
+COPY apps/backend/src ./apps/backend/src
+
 # Install dependencies
 WORKDIR /app/apps/web
 RUN npm install
 
-# Copy source
+# Copy frontend source
 COPY apps/web ./
 
 # Build Next.js

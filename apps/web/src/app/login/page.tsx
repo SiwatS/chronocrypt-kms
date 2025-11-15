@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api-client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,23 +17,16 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Important for cookies
-        body: JSON.stringify({ username, password }),
-      });
+      const { data, error: apiError } = await api.api.auth.login.post({ username, password });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (apiError) {
+        setError(apiError.value?.message || 'Login failed');
+      } else if (data?.success) {
         // Login successful, redirect to dashboard
         router.push('/');
         router.refresh();
       } else {
-        setError(data.message || 'Login failed');
+        setError('Login failed');
       }
     } catch (err) {
       setError('Failed to connect to server');

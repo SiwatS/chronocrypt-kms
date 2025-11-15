@@ -887,6 +887,9 @@ const app = new Elysia()
 
   .listen(3001);
 
+// Export type for Eden Treaty client
+export type App = typeof app;
+
 console.log(
   `🦊 ChronoCrypt KMS Backend is running at ${app.server?.hostname}:${app.server?.port}`
 );
