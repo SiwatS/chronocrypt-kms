@@ -179,14 +179,22 @@ export const apiKeyService = {
   },
 
   async generate(data: { requesterId: string; name: string; expiresAt?: string }) {
-    const response = await edenFetch('/api/api-keys/generate', {
+    const response = await edenFetch('/api/requesters/:id/api-keys', {
       method: 'POST',
+      params: { id: data.requesterId },
       headers: getAuthHeaders(),
-      body: data,
+      body: {
+        name: data.name,
+        expiresAt: data.expiresAt
+      },
     });
 
     if (response.error) {
       throw new ApiError(getErrorMessage(response.error), response.status);
+    }
+
+    if (!response.data || !('keyId' in response.data)) {
+      throw new ApiError('Invalid response format');
     }
 
     return response.data;
@@ -272,6 +280,10 @@ export const auditService = {
       throw new ApiError(getErrorMessage(response.error), response.status);
     }
 
+    if (!response.data || !('totalEntries' in response.data)) {
+      throw new ApiError('Invalid response format');
+    }
+
     return response.data;
   },
 };
@@ -290,6 +302,10 @@ export const statsService = {
       throw new ApiError(getErrorMessage(response.error), response.status);
     }
 
+    if (!response.data || !('accessRequests' in response.data)) {
+      throw new ApiError('Invalid response format');
+    }
+
     return response.data;
   },
 };
@@ -305,6 +321,10 @@ export const healthService = {
 
     if (response.error) {
       throw new ApiError(getErrorMessage(response.error), response.status);
+    }
+
+    if (!response.data || !('components' in response.data)) {
+      throw new ApiError('Invalid response format');
     }
 
     return response.data;

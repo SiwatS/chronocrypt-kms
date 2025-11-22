@@ -281,7 +281,7 @@ export default function AuditLogsPage() {
               {entries.length === 0 ? (
                 <div className="empty-state">No audit entries found</div>
               ) : (
-                entries.map((entry) => (
+                entries.map((entry: typeof entries[number]) => (
                   <div
                     key={entry.id}
                     className="table-row"

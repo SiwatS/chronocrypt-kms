@@ -58,23 +58,27 @@ export default function StatisticsPage() {
   const exportAsCSV = () => {
     if (!stats || !auditStats) return;
 
+    const successfulEvents = Math.round(auditStats.totalEntries * auditStats.successRate);
+    const failedEvents = Math.round(auditStats.totalEntries * (1 - auditStats.successRate));
+    const uniqueActors = Object.keys(auditStats.entriesByActor).length;
+
     const csvLines = [
       'Category,Metric,Value',
-      `Access Requests,Total,${stats.accessRequests.total}`,
-      `Access Requests,Granted,${stats.accessRequests.granted}`,
-      `Access Requests,Denied,${stats.accessRequests.denied}`,
-      `Access Requests,Last 24 Hours,${stats.accessRequests.last24Hours}`,
-      `Policies,Total,${stats.policies.total}`,
-      `Policies,Enabled,${stats.policies.enabled}`,
-      `Policies,Disabled,${stats.policies.disabled}`,
-      `Audit Log,Total Entries,${stats.auditLog.totalEntries}`,
-      `Audit Log,Success Rate,${(stats.auditLog.successRate * 100).toFixed(2)}%`,
-      `Key Management,Total Keys Derived,${stats.keyManagement.totalKeysDerivied}`,
-      `Key Management,Avg Keys Per Request,${stats.keyManagement.averageKeysPerRequest}`,
-      `Audit Events,Total Events,${auditStats.totalEvents}`,
-      `Audit Events,Successful,${auditStats.successfulEvents}`,
-      `Audit Events,Failed,${auditStats.failedEvents}`,
-      `Audit Events,Unique Actors,${auditStats.uniqueActors}`,
+      `Access Requests,Total,${stats.accessRequests?.total ?? 0}`,
+      `Access Requests,Granted,${stats.accessRequests?.granted ?? 0}`,
+      `Access Requests,Denied,${stats.accessRequests?.denied ?? 0}`,
+      `Access Requests,Last 24 Hours,${stats.accessRequests?.last24Hours ?? 0}`,
+      `Policies,Total,${stats.policies?.total ?? 0}`,
+      `Policies,Enabled,${stats.policies?.enabled ?? 0}`,
+      `Policies,Disabled,${stats.policies?.disabled ?? 0}`,
+      `Audit Log,Total Entries,${stats.auditLog?.totalEntries ?? 0}`,
+      `Audit Log,Success Rate,${((stats.auditLog?.successRate ?? 0) * 100).toFixed(2)}%`,
+      `Key Management,Total Keys Derived,${stats.keyManagement?.totalKeysDerivied ?? 0}`,
+      `Key Management,Avg Keys Per Request,${stats.keyManagement?.averageKeysPerRequest ?? 0}`,
+      `Audit Events,Total Events,${auditStats.totalEntries}`,
+      `Audit Events,Successful,${successfulEvents}`,
+      `Audit Events,Failed,${failedEvents}`,
+      `Audit Events,Unique Actors,${uniqueActors}`,
     ];
 
     const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });

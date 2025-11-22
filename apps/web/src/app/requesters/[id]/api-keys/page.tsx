@@ -221,10 +221,10 @@ Authorization: ApiKey ${generatedKey.fullKey}
     );
   }
 
-  const activeKeys = requester.apiKeys.filter(k => k.enabled && !isExpired(k.expiresAt)).length;
-  const expiredKeys = requester.apiKeys.filter(k => isExpired(k.expiresAt)).length;
+  const activeKeys = requester.apiKeys.filter((k: typeof requester.apiKeys[number]) => k.enabled && !isExpired(k.expiresAt)).length;
+  const expiredKeys = requester.apiKeys.filter((k: typeof requester.apiKeys[number]) => isExpired(k.expiresAt)).length;
   const lastUsed = requester.apiKeys
-    .filter(k => k.lastUsedAt)
+    .filter((k: typeof requester.apiKeys[number]) => k.lastUsedAt)
     .sort((a, b) => new Date(b.lastUsedAt!).getTime() - new Date(a.lastUsedAt!).getTime())[0];
 
   return (

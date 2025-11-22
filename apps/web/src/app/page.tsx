@@ -194,7 +194,7 @@ export default function Dashboard() {
               {recentActivity.length === 0 ? (
                 <div className="empty-state">No recent activity</div>
               ) : (
-                recentActivity.map((entry) => (
+                recentActivity.map((entry: typeof recentActivity[number]) => (
                   <div key={entry.id} className="table-row">
                     <div className="table-cell">
                       <span className="event-type">{entry.eventType}</span>
