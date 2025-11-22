@@ -127,12 +127,12 @@ export class PrismaAuditLog implements AuditLogStorage {
     ]);
 
     const entriesByType: Record<string, number> = {};
-    byType.forEach((item) => {
+    byType.forEach((item: { eventType: string; _count: number }) => {
       entriesByType[item.eventType] = item._count;
     });
 
     const entriesByActor: Record<string, number> = {};
-    byActor.forEach((item) => {
+    byActor.forEach((item: { actor: string; _count: number }) => {
       entriesByActor[item.actor] = item._count;
     });
 

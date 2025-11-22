@@ -534,7 +534,7 @@ const app = new Elysia()
       });
 
       return {
-        apiKeys: apiKeys.map(key => ({
+        apiKeys: apiKeys.map((key: typeof apiKeys[number]) => ({
           id: key.id,
           keyId: key.keyId,
           name: key.name,

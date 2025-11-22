@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import fetch, { getErrorMessage } from '@/lib/eden-client';
+import { requesterService, ApiError } from '@/services/api';
 import { useAdmin } from '@/contexts/AdminContext';
 
-type Requester = any; // Will be inferred from edenFetch response
 
 export default function RequestersPage() {
   const router = useRouter();
@@ -46,30 +45,17 @@ export default function RequestersPage() {
   }, [requesters, searchTerm, statusFilter]);
 
   const loadRequesters = async () => {
-    const sessionId = localStorage.getItem('sessionId');
-    if (!sessionId) return;
-
     try {
       setLoading(true);
-      const response = await fetch('/api/requesters', {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${sessionId}` }
-      });
-
-      if (response.error) {
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-        throw new Error(getErrorMessage(response.error) || 'Failed to load requesters');
-      }
-
-      if (response.data && 'requesters' in response.data) {
-        setRequesters(response.data.requesters);
-      }
+      const data = await requesterService.getAll();
+      setRequesters(data);
       setError(null);
-    } catch (_err: unknown) {
-      setError(err instanceof Error ? _err.message : 'Failed to load data');
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        logout();
+        return;
+      }
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -166,7 +152,7 @@ export default function RequestersPage() {
       setShowCreateModal(false);
       await loadRequesters();
     } catch (_err: unknown) {
-      setFormError(err instanceof Error ? _err.message : 'Failed to create requester');
+      setFormError(err instanceof Error ? err.message : 'Failed to create requester');
     } finally {
       setSubmitting(false);
     }
@@ -217,7 +203,7 @@ export default function RequestersPage() {
       setShowEditModal(false);
       await loadRequesters();
     } catch (_err: unknown) {
-      setFormError(err instanceof Error ? _err.message : 'Failed to update requester');
+      setFormError(err instanceof Error ? err.message : 'Failed to update requester');
     } finally {
       setSubmitting(false);
     }
@@ -243,7 +229,7 @@ export default function RequestersPage() {
       setShowDeleteModal(false);
       await loadRequesters();
     } catch (_err: unknown) {
-      setError(err instanceof Error ? _err.message : 'Failed to delete requester');
+      setError(err instanceof Error ? err.message : 'Failed to delete requester');
     } finally {
       setSubmitting(false);
     }
@@ -268,7 +254,7 @@ export default function RequestersPage() {
 
       await loadRequesters();
     } catch (_err: unknown) {
-      setError(err instanceof Error ? _err.message : 'Failed to toggle status');
+      setError(err instanceof Error ? err.message : 'Failed to toggle status');
     }
   };
 
@@ -365,7 +351,7 @@ export default function RequestersPage() {
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Status</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'enabled' | 'disabled')}>
                 <option value="all">All</option>
                 <option value="enabled">Enabled Only</option>
                 <option value="disabled">Disabled Only</option>

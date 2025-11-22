@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import fetch, { getErrorMessage } from '@/lib/eden-client';
+import { statsService, healthService, auditService } from '@/services/api';
 import { useAdmin } from '@/contexts/AdminContext';
 
 export default function Dashboard() {
   const router = useRouter();
   const { isAuthenticated, username, loading: authLoading, logout } = useAdmin();
-  const [stats, setStats] = useState<any>(null);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [health, setHealth] = useState<any>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,26 +28,15 @@ export default function Dashboard() {
     if (!sessionId) return;
 
     try {
-      const [statsRes, healthRes, auditRes] = await Promise.all([
-        fetch('/api/stats', {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${sessionId}` }
-        }),
-        fetch('/api/health', {
-          method: 'GET'
-        }),
-        fetch('/api/audit-logs?limit=10', {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${sessionId}` }
-        })
+      const [statsData, healthData, auditData] = await Promise.all([
+        statsService.getStats(),
+        healthService.getHealth(),
+        auditService.getLogs({ limit: 10 }),
       ]);
 
-      if (statsRes.error) throw new Error(getErrorMessage(statsRes.error) || 'Failed to load stats');
-      if (healthRes.error) throw new Error(getErrorMessage(healthRes.error) || 'Failed to load health');
-
-      setStats(statsRes.data);
-      setHealth(healthRes.data);
-      setRecentActivity(auditRes.data && 'entries' in auditRes.data ? (auditRes.data.entries || []) : []);
+      setStats(statsData);
+      setHealth(healthData);
+      setRecentActivity(auditData.entries);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -205,7 +194,7 @@ export default function Dashboard() {
               {recentActivity.length === 0 ? (
                 <div className="empty-state">No recent activity</div>
               ) : (
-                recentActivity.map((entry: any) => (
+                recentActivity.map((entry) => (
                   <div key={entry.id} className="table-row">
                     <div className="table-cell">
                       <span className="event-type">{entry.eventType}</span>

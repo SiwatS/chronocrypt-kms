@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import fetch, { getErrorMessage } from '@/lib/eden-client';
-
-type AuditLogEntry = any; // Will be inferred from edenFetch response
+import { auditService, ApiError } from '@/services/api';
 
 export default function AuditLogsPage() {
   const router = useRouter();
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,49 +27,28 @@ export default function AuditLogsPage() {
     try {
       setLoading(true);
 
-      // Build query parameters
-      const query: Record<string, string> = {
-        limit: limit.toString(),
-        offset: offset.toString(),
+      const params = {
+        limit,
+        offset,
+        ...(eventTypeFilter && { eventType: eventTypeFilter }),
+        ...(actorFilter && { actor: actorFilter }),
+        ...(successFilter !== 'all' && { success: successFilter }),
       };
 
-      if (eventTypeFilter) query.eventType = eventTypeFilter;
-      if (actorFilter) query.actor = actorFilter;
-      if (successFilter !== 'all') query.success = successFilter;
-
-      // Build query string
-      const queryString = new URLSearchParams(query).toString();
-
-      const [logsRes, statsRes] = await Promise.all([
-        fetch(`/api/audit-logs?${queryString}`, {
-          method: 'GET'
-        }),
-        fetch('/api/audit-logs/stats', {
-          method: 'GET'
-        }),
+      const [logsData, statsData] = await Promise.all([
+        auditService.getLogs(params),
+        auditService.getStats(),
       ]);
 
-      if (logsRes.error) {
-        if (logsRes.status === 401) {
-          router.push('/login');
-          return;
-        }
-        throw new Error(getErrorMessage(logsRes.error) || 'Failed to load audit logs');
-      }
-
-      if (statsRes.error) {
-        throw new Error(getErrorMessage(statsRes.error) || 'Failed to load statistics');
-      }
-
-      if (logsRes.data && 'entries' in logsRes.data) {
-        setEntries(logsRes.data.entries || []);
-        setTotal(logsRes.data.total || 0);
-      }
-      if (statsRes.data && 'totalEvents' in statsRes.data) {
-        setStats(statsRes.data);
-      }
+      setEntries(logsData.entries);
+      setTotal(logsData.total);
+      setStats(statsData);
       setError(null);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push('/login');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -108,6 +85,10 @@ export default function AuditLogsPage() {
     );
   }
 
+  const successfulEvents = stats ? Math.round(stats.totalEntries * stats.successRate) : 0;
+  const failedEvents = stats ? Math.round(stats.totalEntries * (1 - stats.successRate)) : 0;
+  const uniqueActors = stats ? Object.keys(stats.entriesByActor).length : 0;
+
   return (
     <div className="container">
       <main className="dashboard">
@@ -140,7 +121,7 @@ export default function AuditLogsPage() {
                 <span className="metric-icon">📊</span>
                 <h3>Total Events</h3>
               </div>
-              <div className="metric-value">{stats.totalEvents || 0}</div>
+              <div className="metric-value">{stats.totalEntries}</div>
             </div>
 
             <div className="metric-card">
@@ -148,9 +129,9 @@ export default function AuditLogsPage() {
                 <span className="metric-icon">✅</span>
                 <h3>Successful Events</h3>
               </div>
-              <div className="metric-value">{stats.successfulEvents || 0}</div>
+              <div className="metric-value">{successfulEvents}</div>
               <div className="metric-footer">
-                Success Rate: {((stats.successfulEvents / stats.totalEvents) * 100 || 0).toFixed(1)}%
+                Success Rate: {(stats.successRate * 100).toFixed(1)}%
               </div>
             </div>
 
@@ -159,7 +140,7 @@ export default function AuditLogsPage() {
                 <span className="metric-icon">❌</span>
                 <h3>Failed Events</h3>
               </div>
-              <div className="metric-value">{stats.failedEvents || 0}</div>
+              <div className="metric-value">{failedEvents}</div>
             </div>
 
             <div className="metric-card">
@@ -167,7 +148,7 @@ export default function AuditLogsPage() {
                 <span className="metric-icon">👥</span>
                 <h3>Unique Actors</h3>
               </div>
-              <div className="metric-value">{stats.uniqueActors || 0}</div>
+              <div className="metric-value">{uniqueActors}</div>
             </div>
           </section>
         )}

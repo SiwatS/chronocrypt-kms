@@ -20,15 +20,24 @@ const getBaseUrl = () => {
 export const fetch = edenFetch<App>(getBaseUrl());
 
 // Helper to extract error message from Eden response
-export function getErrorMessage(error: any): string {
+export function getErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error;
-  if (error?.message) return error.message;
-  if (error?.summary) return error.summary;
-  if (error?.value) {
-    if (typeof error.value === 'string') return error.value;
-    if (error.value?.message) return error.value.message;
-    if (error.value?.summary) return error.value.summary;
+
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
+
+    if (typeof err.message === 'string') return err.message;
+    if (typeof err.summary === 'string') return err.summary;
+
+    if (err.value && typeof err.value === 'object') {
+      const value = err.value as Record<string, unknown>;
+      if (typeof value.message === 'string') return value.message;
+      if (typeof value.summary === 'string') return value.summary;
+    }
+
+    if (typeof err.value === 'string') return err.value;
   }
+
   return 'An error occurred';
 }
 
