@@ -94,7 +94,7 @@ export default function RequestersPage() {
     setShowCreateModal(true);
   };
 
-  const openEditModal = (requester: Requester) => {
+  const openEditModal = (requester) => {
     setSelectedRequester(requester);
     setFormData({
       name: requester.name,
@@ -106,7 +106,7 @@ export default function RequestersPage() {
     setShowEditModal(true);
   };
 
-  const openDeleteModal = (requester: Requester) => {
+  const openDeleteModal = (requester) => {
     setSelectedRequester(requester);
     setShowDeleteModal(true);
   };
@@ -235,7 +235,7 @@ export default function RequestersPage() {
     }
   };
 
-  const toggleEnabled = async (requester: Requester) => {
+  const toggleEnabled = async (requester) => {
     const sessionId = localStorage.getItem('sessionId');
 
     try {
