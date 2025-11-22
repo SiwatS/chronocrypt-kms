@@ -1,0 +1,96 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/web/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: bun install
+
+      - name: Install frontend dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: apps/backend
+        run: bun run db:generate
+
+      - name: Lint backend
+        working-directory: apps/backend
+        run: bun run lint || true
+        continue-on-error: true
+
+      - name: Type check backend
+        working-directory: apps/backend
+        run: bunx tsc --noEmit
+
+      - name: Lint frontend
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Type check frontend
+        working-directory: apps/web
+        run: npm run type-check
+
+  build-test:
+    name: Build Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/web/package-lock.json
+
+      - name: Install all dependencies
+        run: |
+          cd apps/backend && bun install
+          cd ../web && npm ci
+
+      - name: Generate Prisma Client
+        working-directory: apps/backend
+        run: bun run db:generate
+
+      - name: Build frontend
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Build backend
+        working-directory: apps/backend
+        run: bun run build

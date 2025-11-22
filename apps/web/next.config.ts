@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  typescript: {
+    // Skip type checking during build (we have a separate type-check script)
+    // This prevents Next.js from type-checking backend files copied for Eden Treaty
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    // Skip linting during build
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
