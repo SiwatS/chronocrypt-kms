@@ -4,7 +4,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import fetch, { getErrorMessage } from '@/lib/eden-client';
 
-type Policy = any; // Will be inferred from edenFetch response
+type Policy = {
+  id: string;
+  name: string;
+  type: string;
+  priority: number;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  description?: string;
+  createdAt: number;
+};
 
 export default function PoliciesPage() {
   const router = useRouter();
@@ -41,7 +50,7 @@ export default function PoliciesPage() {
       }
 
       if (response.data && Array.isArray(response.data)) {
-        setPolicies(response.data.sort((a: any, b: any) => b.priority - a.priority));
+        setPolicies(response.data.sort((a: Policy, b: Policy) => b.priority - a.priority));
       }
       setError(null);
     } catch (err) {

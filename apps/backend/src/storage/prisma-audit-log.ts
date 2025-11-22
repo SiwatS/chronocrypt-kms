@@ -22,7 +22,7 @@ export class PrismaAuditLog implements AuditLogStorage {
         startTime: entry.timeRange?.startTime,
         endTime: entry.timeRange?.endTime,
         success: entry.success,
-        details: entry.details as any,
+        details: entry.details as Prisma.JsonValue,
       },
     });
   }
@@ -163,7 +163,7 @@ export class PrismaAuditLog implements AuditLogStorage {
   /**
    * Convert Prisma model to AuditLogEntry
    */
-  private toAuditLogEntry(entry: any): AuditLogEntry {
+  private toAuditLogEntry(entry: { id: string; timestamp: bigint; eventType: string; actor: string; target: string | null; startTime: bigint | null; endTime: bigint | null; success: boolean; details: Prisma.JsonValue }): AuditLogEntry {
     return {
       id: entry.id,
       timestamp: Number(entry.timestamp),

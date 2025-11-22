@@ -339,10 +339,10 @@ export default function StatisticsPage() {
             <h2 style={{ marginBottom: '1rem' }}>Event Type Distribution</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {Object.entries(auditStats.entriesByType)
-                .sort(([, a], [, b]) => b - a)
-                .map(([eventType, count]) => {
+                .sort(([, a], [, b]) => (b as number) - (a as number))
+                .map(([eventType, count]: [string, unknown]) => {
                   const percentage = auditStats.totalEntries > 0
-                    ? ((count / auditStats.totalEntries) * 100).toFixed(1)
+                    ? (((count as number) / auditStats.totalEntries) * 100).toFixed(1)
                     : '0';
                   return (
                     <div
@@ -375,7 +375,7 @@ export default function StatisticsPage() {
                           }} />
                         </div>
                         <span style={{ fontSize: '0.875rem', color: '#6b7280', minWidth: '80px', textAlign: 'right' }}>
-                          {count} ({percentage}%)
+                          {count as number} ({percentage}%)
                         </span>
                       </div>
                     </div>

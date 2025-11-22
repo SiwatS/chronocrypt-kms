@@ -44,7 +44,7 @@ export class PrismaPolicyStore {
         type: policy.type,
         priority: policy.priority || 0,
         enabled: policy.enabled,
-        config: policy.config as any,
+        config: policy.config as Prisma.JsonValue,
         description: policy.description,
       },
       update: {
@@ -52,7 +52,7 @@ export class PrismaPolicyStore {
         type: policy.type,
         priority: policy.priority || 0,
         enabled: policy.enabled,
-        config: policy.config as any,
+        config: policy.config as Prisma.JsonValue,
         description: policy.description,
       },
     });
@@ -146,7 +146,7 @@ export class PrismaPolicyStore {
   /**
    * Convert Prisma model to PolicyConfig
    */
-  private toPolicyConfig(policy: any): PolicyConfig {
+  private toPolicyConfig(policy: { id: string; name: string; type: string; priority: number; enabled: boolean; config: Prisma.JsonValue; description: string | null }): PolicyConfig {
     return {
       id: policy.id,
       name: policy.name,

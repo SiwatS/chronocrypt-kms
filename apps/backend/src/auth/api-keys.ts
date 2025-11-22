@@ -105,7 +105,7 @@ export async function validateApiKey(
  * Create API key authentication middleware for Elysia
  */
 export function createApiKeyMiddleware(prisma: PrismaClient) {
-  return async function requireApiKey({ headers, set }: any) {
+  return async function requireApiKey({ headers, set }: { headers: Record<string, string | undefined>; set: { status: number } }) {
     const authHeader = headers.authorization || headers.Authorization;
 
     if (!authHeader || !authHeader.startsWith('ApiKey ')) {

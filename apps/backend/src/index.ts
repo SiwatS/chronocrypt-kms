@@ -7,8 +7,9 @@
 import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { KMSService } from './services/kms';
+import type { PolicyConfig } from '@siwats/chronocrypt';
 import { createApiKeyMiddleware, generateApiKeyPair, hashApiKeySecret } from './auth/api-keys';
 import {
   authenticateAdmin,
@@ -360,7 +361,7 @@ const app = new Elysia()
       const { name, description, metadata } = body as {
         name: string;
         description?: string;
-        metadata?: any;
+        metadata?: Prisma.JsonValue;
       };
 
       const requester = await prisma.requester.create({
@@ -399,7 +400,7 @@ const app = new Elysia()
         name?: string;
         description?: string;
         enabled?: boolean;
-        metadata?: any;
+        metadata?: Prisma.JsonValue;
       };
 
       const requester = await prisma.requester.update({
@@ -971,7 +972,13 @@ const app = new Elysia()
 
     .post('/api/policies', async ({ body, set }) => {
       try {
-        const policyData = body as any;
+        const policyData = body as {
+          name: string;
+          type?: string;
+          priority?: number;
+          config: PolicyConfig;
+          description?: string;
+        };
 
         const newPolicy = {
           id: `policy-${Date.now()}-${Math.random().toString(36).substring(7)}`,
