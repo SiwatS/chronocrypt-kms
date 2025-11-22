@@ -181,7 +181,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">📊</span>
                 <h3>Total Requests</h3>
               </div>
-              <div className="metric-value">{stats?.accessRequests.total ?? 0}</div>
+              <div className="metric-value">{stats?.accessRequests?.total ?? 0}</div>
               <div className="metric-footer">All-time count</div>
             </div>
 
@@ -191,7 +191,7 @@ export default function StatisticsPage() {
                 <h3>Granted</h3>
               </div>
               <div className="metric-value" style={{ color: '#10b981' }}>
-                {stats?.accessRequests.granted ?? 0}
+                {stats?.accessRequests?.granted ?? 0}
               </div>
               <div className="metric-footer">Success rate: {accessGrantRate}%</div>
             </div>
@@ -202,7 +202,7 @@ export default function StatisticsPage() {
                 <h3>Denied</h3>
               </div>
               <div className="metric-value" style={{ color: '#ef4444' }}>
-                {stats?.accessRequests.denied ?? 0}
+                {stats?.accessRequests?.denied ?? 0}
               </div>
               <div className="metric-footer">Policy violations</div>
             </div>
@@ -212,7 +212,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">⏰</span>
                 <h3>Last 24 Hours</h3>
               </div>
-              <div className="metric-value">{stats?.accessRequests.last24Hours ?? 0}</div>
+              <div className="metric-value">{stats?.accessRequests?.last24Hours ?? 0}</div>
               <div className="metric-footer">Recent activity</div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">🔒</span>
                 <h3>Total Policies</h3>
               </div>
-              <div className="metric-value">{stats?.policies.total ?? 0}</div>
+              <div className="metric-value">{stats?.policies?.total ?? 0}</div>
               <div className="metric-footer">Configured rules</div>
             </div>
 
@@ -237,7 +237,7 @@ export default function StatisticsPage() {
                 <h3>Enabled</h3>
               </div>
               <div className="metric-value" style={{ color: '#10b981' }}>
-                {stats?.policies.enabled ?? 0}
+                {stats?.policies?.enabled ?? 0}
               </div>
               <div className="metric-footer">Active policies</div>
             </div>
@@ -248,7 +248,7 @@ export default function StatisticsPage() {
                 <h3>Disabled</h3>
               </div>
               <div className="metric-value" style={{ color: '#6b7280' }}>
-                {stats?.policies.disabled ?? 0}
+                {stats?.policies?.disabled ?? 0}
               </div>
               <div className="metric-footer">Inactive policies</div>
             </div>
@@ -310,7 +310,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">🔑</span>
                 <h3>Total Keys Derived</h3>
               </div>
-              <div className="metric-value">{stats?.keyManagement.totalKeysDerivied ?? 0}</div>
+              <div className="metric-value">{stats?.keyManagement?.totalKeysDerivied ?? 0}</div>
               <div className="metric-footer">All-time count</div>
             </div>
 
@@ -320,7 +320,7 @@ export default function StatisticsPage() {
                 <h3>Avg Keys Per Request</h3>
               </div>
               <div className="metric-value">
-                {stats?.keyManagement.averageKeysPerRequest?.toFixed(2) || '0.00'}
+                {stats?.keyManagement?.averageKeysPerRequest?.toFixed(2) ?? '0.00'}
               </div>
               <div className="metric-footer">Efficiency metric</div>
             </div>
@@ -328,7 +328,7 @@ export default function StatisticsPage() {
         </section>
 
         {/* Event Types Breakdown */}
-        {auditStats?.eventTypes && Object.keys(auditStats.entriesByType).length > 0 && (
+        {auditStats?.entriesByType && Object.keys(auditStats.entriesByType).length > 0 && (
           <section style={{
             background: 'white',
             borderRadius: '12px',

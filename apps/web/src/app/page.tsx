@@ -106,15 +106,15 @@ export default function Dashboard() {
               <span className="metric-icon">📊</span>
               <h3>Access Requests</h3>
             </div>
-            <div className="metric-value">{stats?.accessRequests.total || 0}</div>
+            <div className="metric-value">{stats?.accessRequests?.total ?? 0}</div>
             <div className="metric-details">
               <div className="metric-detail">
                 <span className="detail-label">Granted:</span>
-                <span className="detail-value">{stats?.accessRequests.granted || 0}</span>
+                <span className="detail-value">{stats?.accessRequests?.granted ?? 0}</span>
               </div>
               <div className="metric-detail">
                 <span className="detail-label">Denied:</span>
-                <span className="detail-value">{stats?.accessRequests.denied || 0}</span>
+                <span className="detail-value">{stats?.accessRequests?.denied ?? 0}</span>
               </div>
               <div className="metric-detail">
                 <span className="detail-label">Success Rate:</span>
@@ -122,7 +122,7 @@ export default function Dashboard() {
               </div>
               <div className="metric-detail">
                 <span className="detail-label">Last 24h:</span>
-                <span className="detail-value">{stats?.accessRequests.last24Hours || 0}</span>
+                <span className="detail-value">{stats?.accessRequests?.last24Hours ?? 0}</span>
               </div>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function Dashboard() {
               <span className="metric-icon">📜</span>
               <h3>Audit Log</h3>
             </div>
-            <div className="metric-value">{stats?.auditLog.totalEntries || 0}</div>
+            <div className="metric-value">{stats?.auditLog?.totalEntries ?? 0}</div>
             <div className="metric-details">
               <div className="metric-detail">
                 <span className="detail-label">Success Rate:</span>
@@ -140,7 +140,7 @@ export default function Dashboard() {
               </div>
               <div className="metric-detail">
                 <span className="detail-label">Recent Events:</span>
-                <span className="detail-value">{recentActivity.length}</span>
+                <span className="detail-value">{recentActivity?.length ?? 0}</span>
               </div>
             </div>
           </div>
@@ -150,15 +150,15 @@ export default function Dashboard() {
               <span className="metric-icon">🔒</span>
               <h3>Policies</h3>
             </div>
-            <div className="metric-value">{stats?.policies.total || 0}</div>
+            <div className="metric-value">{stats?.policies?.total ?? 0}</div>
             <div className="metric-details">
               <div className="metric-detail">
                 <span className="detail-label">Enabled:</span>
-                <span className="detail-value status-healthy">{stats?.policies.enabled || 0}</span>
+                <span className="detail-value status-healthy">{stats?.policies?.enabled ?? 0}</span>
               </div>
               <div className="metric-detail">
                 <span className="detail-label">Disabled:</span>
-                <span className="detail-value">{stats?.policies.disabled || 0}</span>
+                <span className="detail-value">{stats?.policies?.disabled ?? 0}</span>
               </div>
             </div>
           </div>
@@ -191,10 +191,10 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="table-body">
-              {recentActivity.length === 0 ? (
+              {(recentActivity?.length ?? 0) === 0 ? (
                 <div className="empty-state">No recent activity</div>
               ) : (
-                recentActivity.map((entry: typeof recentActivity[number]) => (
+                recentActivity?.map((entry) => (
                   <div key={entry.id} className="table-row">
                     <div className="table-cell">
                       <span className="event-type">{entry.eventType}</span>

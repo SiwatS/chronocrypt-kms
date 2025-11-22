@@ -31,7 +31,8 @@ export class ApiError extends Error {
 export const adminService = {
   async checkSetup() {
     const response = await edenFetch('/api/admin/setup', {
-      method: 'GET',
+      method: 'POST',
+      body: { username: '', password: '' },
     });
 
     if (response.error) {
@@ -104,7 +105,7 @@ export const requesterService = {
 
   async getById(id: string) {
     const requesters = await this.getAll();
-    const requester = requesters.find((r) => r.id === id);
+    const requester = requesters.find((r: typeof requesters[number]) => r.id === id);
 
     if (!requester) {
       throw new ApiError('Requester not found', 404);
@@ -201,32 +202,40 @@ export const apiKeyService = {
   },
 
   async update(keyId: string, data: { enabled?: boolean; name?: string }) {
-    const response = await edenFetch('/api/api-keys/:keyId', {
-      method: 'PUT',
-      params: { keyId },
-      headers: getAuthHeaders(),
-      body: data,
-    });
+    // Backend has separate enable/disable endpoints instead of a general update
+    if (data.enabled !== undefined) {
+      const endpoint = data.enabled
+        ? `/api/api-keys/${keyId}/enable`
+        : `/api/api-keys/${keyId}/disable`;
 
-    if (response.error) {
-      throw new ApiError(getErrorMessage(response.error), response.status);
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new ApiError(getErrorMessage(error), response.status);
+      }
+
+      return await response.json();
     }
 
-    return response.data;
+    throw new ApiError('Only enabled field can be updated');
   },
 
   async delete(keyId: string) {
-    const response = await edenFetch('/api/api-keys/:keyId', {
+    const response = await fetch(`/api/api-keys/${keyId}`, {
       method: 'DELETE',
-      params: { keyId },
       headers: getAuthHeaders(),
     });
 
-    if (response.error) {
-      throw new ApiError(getErrorMessage(response.error), response.status);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new ApiError(getErrorMessage(error), response.status);
     }
 
-    return response.data;
+    return await response.json();
   },
 };
 
@@ -249,7 +258,7 @@ export const auditService = {
     if (params?.success) queryParams.success = params.success;
 
     const queryString = new URLSearchParams(queryParams).toString();
-    const url = queryString ? `/api/audit-logs?${queryString}` : '/api/audit-logs';
+    const url = (queryString ? `/api/audit-logs?${queryString}` : '/api/audit-logs') as '/api/audit-logs';
 
     const response = await edenFetch(url, {
       method: 'GET',
@@ -263,7 +272,7 @@ export const auditService = {
     if (response.data && 'entries' in response.data) {
       return {
         entries: response.data.entries,
-        total: 'total' in response.data ? response.data.total : 0,
+        total: ('total' in response.data ? response.data.total : 0) as number,
       };
     }
 

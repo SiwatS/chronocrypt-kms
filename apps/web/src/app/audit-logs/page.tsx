@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auditService, ApiError } from '@/services/api';
 
+type AuditLogEntryWithMetadata = NonNullable<Awaited<ReturnType<typeof auditService.getLogs>>['entries']>[number] & { metadata?: unknown };
+
 export default function AuditLogsPage() {
   const router = useRouter();
   const [entries, setEntries] = useState<Awaited<ReturnType<typeof auditService.getLogs>>['entries']>([]);
@@ -74,7 +76,7 @@ export default function AuditLogsPage() {
     setOffset(0);
   };
 
-  if (loading && entries.length === 0) {
+  if (loading && (entries?.length ?? 0) === 0) {
     return (
       <div className="container">
         <div className="loading">
@@ -278,10 +280,10 @@ export default function AuditLogsPage() {
               </div>
             </div>
             <div className="table-body">
-              {entries.length === 0 ? (
+              {(entries?.length ?? 0) === 0 ? (
                 <div className="empty-state">No audit entries found</div>
               ) : (
-                entries.map((entry: typeof entries[number]) => (
+                entries?.map((entry: AuditLogEntryWithMetadata) => (
                   <div
                     key={entry.id}
                     className="table-row"
@@ -300,7 +302,7 @@ export default function AuditLogsPage() {
                       {new Date(entry.timestamp).toLocaleString()}
                     </div>
                     <div className="table-cell">
-                      {entry.metadata && (
+                      {entry.metadata !== undefined && entry.metadata !== null && (
                         <button
                           onClick={() => alert(JSON.stringify(entry.metadata, null, 2))}
                           style={{
