@@ -2,30 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { client } from '@/lib/eden-client';
+import { requesterService, apiKeyService, ApiError } from '@/services/api';
 import { useAdmin } from '@/contexts/AdminContext';
-
-interface ApiKey {
-  id: string;
-  keyId: string;
-  name: string;
-  enabled: boolean;
-  expiresAt?: string;
-  lastUsedAt?: string;
-  createdAt: string;
-  createdBy: string;
-}
-
-interface Requester {
-  id: string;
-  name: string;
-  description?: string;
-  enabled: boolean;
-  metadata?: any;
-  createdAt: string;
-  updatedAt: string;
-  apiKeys: ApiKey[];
-}
 
 export default function ApiKeysPage() {
   const router = useRouter();
@@ -33,7 +11,7 @@ export default function ApiKeysPage() {
   const requesterId = params.id as string;
   const { isAuthenticated, username, loading: authLoading, logout } = useAdmin();
 
-  const [requester, setRequester] = useState<Requester | null>(null);
+  const [requester, setRequester] = useState<Awaited<ReturnType<typeof requesterService.getAll>>[number] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +19,7 @@ export default function ApiKeysPage() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showSecretModal, setShowSecretModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null);
+  const [selectedApiKey, setSelectedApiKey] = useState<Awaited<ReturnType<typeof apiKeyService.getAll>>[number] | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -62,33 +40,16 @@ export default function ApiKeysPage() {
   }, [authLoading, isAuthenticated, requesterId]);
 
   const loadRequester = async () => {
-    const sessionId = localStorage.getItem('sessionId');
-    if (!sessionId) return;
-
     try {
       setLoading(true);
-      const response = await client.api.requesters.get({
-        headers: { Authorization: `Bearer ${sessionId}` }
-      });
-
-      if (response.error) {
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-        throw new Error('Failed to load requester');
-      }
-
-      if (response.data && 'requesters' in response.data) {
-        const found = response.data.requesters.find((r: Requester) => r.id === requesterId);
-        if (found) {
-          setRequester(found);
-        } else {
-          throw new Error('Requester not found');
-        }
-      }
+      const found = await requesterService.getById(requesterId);
+      setRequester(found);
       setError(null);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        logout();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -101,7 +62,7 @@ export default function ApiKeysPage() {
     setShowGenerateModal(true);
   };
 
-  const openDeleteModal = (apiKey: ApiKey) => {
+  const openDeleteModal = (apiKey: Awaited<ReturnType<typeof apiKeyService.getAll>>[number]) => {
     setSelectedApiKey(apiKey);
     setShowDeleteModal(true);
   };
@@ -116,25 +77,19 @@ export default function ApiKeysPage() {
     }
 
     setSubmitting(true);
-    const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await client.api.requesters[requesterId]['api-keys'].post({
+      const response = await apiKeyService.generate({
+        requesterId: requesterId,
         name: formData.name,
         expiresAt: formData.expiresAt || undefined
-      }, {
-        headers: { Authorization: `Bearer ${sessionId}` }
       });
 
-      if (response.error) {
-        throw new Error('Failed to generate API key');
-      }
-
-      if (response.data && 'keyId' in response.data && 'keySecret' in response.data) {
-        const fullKey = `${response.data.keyId}.${response.data.keySecret}`;
+      if ('keyId' in response && 'secret' in response) {
+        const fullKey = `${response.keyId}.${response.secret}`;
         setGeneratedKey({
-          keyId: response.data.keyId as string,
-          keySecret: response.data.keySecret as string,
+          keyId: response.keyId as string,
+          keySecret: response.secret as string,
           fullKey
         });
         setShowGenerateModal(false);
@@ -152,16 +107,9 @@ export default function ApiKeysPage() {
     if (!selectedApiKey) return;
 
     setSubmitting(true);
-    const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await client.api['api-keys'][selectedApiKey.id].delete({
-        headers: { Authorization: `Bearer ${sessionId}` }
-      });
-
-      if (response.error) {
-        throw new Error('Failed to delete API key');
-      }
+      await apiKeyService.delete(selectedApiKey.keyId);
 
       setShowDeleteModal(false);
       await loadRequester();
@@ -172,18 +120,11 @@ export default function ApiKeysPage() {
     }
   };
 
-  const toggleApiKey = async (apiKey: ApiKey) => {
-    const sessionId = localStorage.getItem('sessionId');
-    const endpoint = apiKey.enabled ? 'disable' : 'enable';
-
+  const toggleApiKey = async (apiKey: Awaited<ReturnType<typeof apiKeyService.getAll>>[number]) => {
     try {
-      const response = await client.api['api-keys'][apiKey.id][endpoint].put(undefined, {
-        headers: { Authorization: `Bearer ${sessionId}` }
+      await apiKeyService.update(apiKey.keyId, {
+        enabled: !apiKey.enabled
       });
-
-      if (response.error) {
-        throw new Error('Failed to update API key');
-      }
 
       await loadRequester();
     } catch (err) {
@@ -194,18 +135,10 @@ export default function ApiKeysPage() {
   const toggleRequester = async () => {
     if (!requester) return;
 
-    const sessionId = localStorage.getItem('sessionId');
-
     try {
-      const response = await client.api.requesters[requester.id].put({
+      await requesterService.update(requester.id, {
         enabled: !requester.enabled
-      }, {
-        headers: { Authorization: `Bearer ${sessionId}` }
       });
-
-      if (response.error) {
-        throw new Error('Failed to update requester');
-      }
 
       await loadRequester();
     } catch (err) {

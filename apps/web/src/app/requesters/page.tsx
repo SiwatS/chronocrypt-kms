@@ -9,8 +9,8 @@ import { useAdmin } from '@/contexts/AdminContext';
 export default function RequestersPage() {
   const router = useRouter();
   const { isAuthenticated, username, loading: authLoading, logout } = useAdmin();
-  const [requesters, setRequesters] = useState<Requester[]>([]);
-  const [filteredRequesters, setFilteredRequesters] = useState<Requester[]>([]);
+  const [requesters, setRequesters] = useState<Awaited<ReturnType<typeof requesterService.getAll>>>([]);
+  const [filteredRequesters, setFilteredRequesters] = useState<Awaited<ReturnType<typeof requesterService.getAll>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +18,7 @@ export default function RequestersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedRequester, setSelectedRequester] = useState<Requester | null>(null);
+  const [selectedRequester, setSelectedRequester] = useState<Awaited<ReturnType<typeof requesterService.getAll>>[number] | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -94,7 +94,7 @@ export default function RequestersPage() {
     setShowCreateModal(true);
   };
 
-  const openEditModal = (requester) => {
+  const openEditModal = (requester: Awaited<ReturnType<typeof requesterService.getAll>>[number]) => {
     setSelectedRequester(requester);
     setFormData({
       name: requester.name,
@@ -106,7 +106,7 @@ export default function RequestersPage() {
     setShowEditModal(true);
   };
 
-  const openDeleteModal = (requester) => {
+  const openDeleteModal = (requester: Awaited<ReturnType<typeof requesterService.getAll>>[number]) => {
     setSelectedRequester(requester);
     setShowDeleteModal(true);
   };
@@ -132,26 +132,17 @@ export default function RequestersPage() {
     }
 
     setSubmitting(true);
-    const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await fetch('/api/requesters', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${sessionId}` },
-        body: {
-          name: formData.name,
-          description: formData.description || undefined,
-          metadata
-        }
+      await requesterService.create({
+        name: formData.name,
+        description: formData.description || undefined,
+        metadata
       });
-
-      if (response.error) {
-        throw new Error(getErrorMessage(response.error) || 'Failed to create requester');
-      }
 
       setShowCreateModal(false);
       await loadRequesters();
-    } catch (_err: unknown) {
+    } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Failed to create requester');
     } finally {
       setSubmitting(false);
@@ -181,28 +172,18 @@ export default function RequestersPage() {
     }
 
     setSubmitting(true);
-    const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await fetch('/api/requesters/:id', {
-        method: 'PUT',
-        params: { id: selectedRequester.id },
-        headers: { Authorization: `Bearer ${sessionId}` },
-        body: {
-          name: formData.name,
-          description: formData.description || undefined,
-          enabled: formData.enabled,
-          metadata
-        }
+      await requesterService.update(selectedRequester.id, {
+        name: formData.name,
+        description: formData.description || undefined,
+        enabled: formData.enabled,
+        metadata
       });
-
-      if (response.error) {
-        throw new Error(getErrorMessage(response.error) || 'Failed to update requester');
-      }
 
       setShowEditModal(false);
       await loadRequesters();
-    } catch (_err: unknown) {
+    } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Failed to update requester');
     } finally {
       setSubmitting(false);
@@ -213,47 +194,27 @@ export default function RequestersPage() {
     if (!selectedRequester) return;
 
     setSubmitting(true);
-    const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await fetch('/api/requesters/:id', {
-        method: 'DELETE',
-        params: { id: selectedRequester.id },
-        headers: { Authorization: `Bearer ${sessionId}` }
-      });
-
-      if (response.error) {
-        throw new Error(getErrorMessage(response.error) || 'Failed to delete requester');
-      }
+      await requesterService.delete(selectedRequester.id);
 
       setShowDeleteModal(false);
       await loadRequesters();
-    } catch (_err: unknown) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete requester');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const toggleEnabled = async (requester) => {
-    const sessionId = localStorage.getItem('sessionId');
-
+  const toggleEnabled = async (requester: Awaited<ReturnType<typeof requesterService.getAll>>[number]) => {
     try {
-      const response = await fetch('/api/requesters/:id', {
-        method: 'PUT',
-        params: { id: requester.id },
-        headers: { Authorization: `Bearer ${sessionId}` },
-        body: {
-          enabled: !requester.enabled
-        }
+      await requesterService.update(requester.id, {
+        enabled: !requester.enabled
       });
 
-      if (response.error) {
-        throw new Error(getErrorMessage(response.error) || 'Failed to update requester');
-      }
-
       await loadRequesters();
-    } catch (_err: unknown) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to toggle status');
     }
   };

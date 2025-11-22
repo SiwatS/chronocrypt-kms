@@ -6,8 +6,8 @@ import { auditService, ApiError } from '@/services/api';
 
 export default function AuditLogsPage() {
   const router = useRouter();
-  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
-  const [stats, setStats] = useState<AuditStats | null>(null);
+  const [entries, setEntries] = useState<Awaited<ReturnType<typeof auditService.getLogs>>['entries']>([]);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof auditService.getStats>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

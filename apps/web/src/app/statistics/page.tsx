@@ -2,47 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
-
-interface Stats {
-  accessRequests: {
-    total: number;
-    granted: number;
-    denied: number;
-    last24Hours: number;
-  };
-  policies: {
-    total: number;
-    enabled: number;
-    disabled: number;
-  };
-  auditLog: {
-    totalEntries: number;
-    successRate: number;
-  };
-  keyManagement: {
-    totalKeysDerivied: number;
-    averageKeysPerRequest: number;
-  };
-}
-
-interface AuditStats {
-  totalEvents: number;
-  successfulEvents: number;
-  failedEvents: number;
-  uniqueActors: number;
-  eventTypes: Record<string, number>;
-  timeRanges?: {
-    last24Hours: number;
-    last7Days: number;
-    last30Days: number;
-  };
-}
+import { statsService, auditService, ApiError } from '@/services/api';
 
 export default function StatisticsPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof statsService.getStats>> | null>(null);
+  const [auditStats, setAuditStats] = useState<Awaited<ReturnType<typeof auditService.getStats>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,27 +18,19 @@ export default function StatisticsPage() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const [statsRes, auditStatsRes] = await Promise.all([
-        api.api.stats.get(),
-        api.api['audit-logs'].stats.get(),
+      const [statsData, auditStatsData] = await Promise.all([
+        statsService.getStats(),
+        auditService.getStats(),
       ]);
 
-      if (statsRes.error) {
-        if (statsRes.status === 401) {
-          router.push('/login');
-          return;
-        }
-        throw new Error('Failed to load statistics');
-      }
-
-      if (auditStatsRes.error) {
-        throw new Error('Failed to load audit statistics');
-      }
-
-      setStats(statsRes.data as Stats);
-      setAuditStats(auditStatsRes.data as AuditStats);
+      setStats(statsData);
+      setAuditStats(auditStatsData);
       setError(null);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push('/login');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to load statistics');
     } finally {
       setLoading(false);

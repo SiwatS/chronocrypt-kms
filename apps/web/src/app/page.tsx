@@ -8,9 +8,9 @@ import { useAdmin } from '@/contexts/AdminContext';
 export default function Dashboard() {
   const router = useRouter();
   const { isAuthenticated, username, loading: authLoading, logout } = useAdmin();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
-  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof statsService.getStats>> | null>(null);
+  const [recentActivity, setRecentActivity] = useState<Awaited<ReturnType<typeof auditService.getLogs>>['entries']>([]);
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof healthService.getHealth>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
