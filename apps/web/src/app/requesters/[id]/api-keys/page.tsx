@@ -225,7 +225,7 @@ Authorization: ApiKey ${generatedKey.fullKey}
   const expiredKeys = requester.apiKeys.filter((k: typeof requester.apiKeys[number]) => isExpired(k.expiresAt)).length;
   const lastUsed = requester.apiKeys
     .filter((k: typeof requester.apiKeys[number]) => k.lastUsedAt)
-    .sort((a, b) => new Date(b.lastUsedAt!).getTime() - new Date(a.lastUsedAt!).getTime())[0];
+    .sort((a: typeof requester.apiKeys[number], b: typeof requester.apiKeys[number]) => new Date(b.lastUsedAt!).getTime() - new Date(a.lastUsedAt!).getTime())[0];
 
   return (
     <div className="container">
@@ -353,7 +353,7 @@ Authorization: ApiKey ${generatedKey.fullKey}
               <div>Last Used</div>
               <div>Actions</div>
             </div>
-            {requester.apiKeys.map((apiKey) => (
+            {requester.apiKeys.map((apiKey: typeof requester.apiKeys[number]) => (
               <div key={apiKey.id} className="data-grid-row">
                 <div>
                   <div style={{ fontWeight: 600 }}>{apiKey.name}</div>

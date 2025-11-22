@@ -69,9 +69,9 @@ export default function Dashboard() {
     );
   }
 
-  const successRate = stats ? (stats.auditLog.successRate * 100).toFixed(1) : '0';
-  const grantRate = stats && stats.accessRequests.total > 0
-    ? ((stats.accessRequests.granted / stats.accessRequests.total) * 100).toFixed(1)
+  const successRate = stats ? ((stats.auditLog?.successRate ?? 0) * 100).toFixed(1) : '0';
+  const grantRate = stats && (stats.accessRequests?.total ?? 0) > 0
+    ? (((stats.accessRequests?.granted ?? 0) / (stats.accessRequests?.total ?? 1)) * 100).toFixed(1)
     : '0';
 
   return (
@@ -168,11 +168,11 @@ export default function Dashboard() {
               <span className="metric-icon">🔑</span>
               <h3>Key Management</h3>
             </div>
-            <div className="metric-value">{stats?.keyManagement.totalKeysDerivied || 0}</div>
+            <div className="metric-value">{stats?.keyManagement?.totalKeysDerivied ?? 0}</div>
             <div className="metric-details">
               <div className="metric-detail">
                 <span className="detail-label">Avg Keys/Request:</span>
-                <span className="detail-value">{stats?.keyManagement.averageKeysPerRequest || 0}</span>
+                <span className="detail-value">{stats?.keyManagement?.averageKeysPerRequest ?? 0}</span>
               </div>
             </div>
           </div>

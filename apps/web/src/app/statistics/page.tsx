@@ -115,12 +115,12 @@ export default function StatisticsPage() {
     );
   }
 
-  const accessGrantRate = stats && stats.accessRequests.total > 0
-    ? ((stats.accessRequests.granted / stats.accessRequests.total) * 100).toFixed(1)
+  const accessGrantRate = stats && (stats.accessRequests?.total ?? 0) > 0
+    ? (((stats.accessRequests?.granted ?? 0) / (stats.accessRequests?.total ?? 1)) * 100).toFixed(1)
     : '0';
 
   const auditSuccessRate = stats
-    ? (stats.auditLog.successRate * 100).toFixed(1)
+    ? ((stats.auditLog?.successRate ?? 0) * 100).toFixed(1)
     : '0';
 
   return (
@@ -181,7 +181,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">📊</span>
                 <h3>Total Requests</h3>
               </div>
-              <div className="metric-value">{stats?.accessRequests.total || 0}</div>
+              <div className="metric-value">{stats?.accessRequests.total ?? 0}</div>
               <div className="metric-footer">All-time count</div>
             </div>
 
@@ -191,7 +191,7 @@ export default function StatisticsPage() {
                 <h3>Granted</h3>
               </div>
               <div className="metric-value" style={{ color: '#10b981' }}>
-                {stats?.accessRequests.granted || 0}
+                {stats?.accessRequests.granted ?? 0}
               </div>
               <div className="metric-footer">Success rate: {accessGrantRate}%</div>
             </div>
@@ -202,7 +202,7 @@ export default function StatisticsPage() {
                 <h3>Denied</h3>
               </div>
               <div className="metric-value" style={{ color: '#ef4444' }}>
-                {stats?.accessRequests.denied || 0}
+                {stats?.accessRequests.denied ?? 0}
               </div>
               <div className="metric-footer">Policy violations</div>
             </div>
@@ -212,7 +212,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">⏰</span>
                 <h3>Last 24 Hours</h3>
               </div>
-              <div className="metric-value">{stats?.accessRequests.last24Hours || 0}</div>
+              <div className="metric-value">{stats?.accessRequests.last24Hours ?? 0}</div>
               <div className="metric-footer">Recent activity</div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">🔒</span>
                 <h3>Total Policies</h3>
               </div>
-              <div className="metric-value">{stats?.policies.total || 0}</div>
+              <div className="metric-value">{stats?.policies.total ?? 0}</div>
               <div className="metric-footer">Configured rules</div>
             </div>
 
@@ -237,7 +237,7 @@ export default function StatisticsPage() {
                 <h3>Enabled</h3>
               </div>
               <div className="metric-value" style={{ color: '#10b981' }}>
-                {stats?.policies.enabled || 0}
+                {stats?.policies.enabled ?? 0}
               </div>
               <div className="metric-footer">Active policies</div>
             </div>
@@ -248,7 +248,7 @@ export default function StatisticsPage() {
                 <h3>Disabled</h3>
               </div>
               <div className="metric-value" style={{ color: '#6b7280' }}>
-                {stats?.policies.disabled || 0}
+                {stats?.policies.disabled ?? 0}
               </div>
               <div className="metric-footer">Inactive policies</div>
             </div>
@@ -264,7 +264,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">📜</span>
                 <h3>Total Events</h3>
               </div>
-              <div className="metric-value">{auditStats?.totalEvents || 0}</div>
+              <div className="metric-value">{auditStats?.totalEntries ?? 0}</div>
               <div className="metric-footer">Logged entries</div>
             </div>
 
@@ -274,7 +274,7 @@ export default function StatisticsPage() {
                 <h3>Successful</h3>
               </div>
               <div className="metric-value" style={{ color: '#10b981' }}>
-                {auditStats?.successfulEvents || 0}
+                {Math.round((auditStats?.totalEntries ?? 0) * (auditStats?.successRate ?? 0)) ?? 0}
               </div>
               <div className="metric-footer">Success rate: {auditSuccessRate}%</div>
             </div>
@@ -285,7 +285,7 @@ export default function StatisticsPage() {
                 <h3>Failed</h3>
               </div>
               <div className="metric-value" style={{ color: '#ef4444' }}>
-                {auditStats?.failedEvents || 0}
+                {Math.round((auditStats?.totalEntries ?? 0) * (1 - (auditStats?.successRate ?? 0))) ?? 0}
               </div>
               <div className="metric-footer">Error events</div>
             </div>
@@ -295,7 +295,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">👥</span>
                 <h3>Unique Actors</h3>
               </div>
-              <div className="metric-value">{auditStats?.uniqueActors || 0}</div>
+              <div className="metric-value">{Object.keys(auditStats?.entriesByActor ?? {}).length ?? 0}</div>
               <div className="metric-footer">Different users</div>
             </div>
           </div>
@@ -310,7 +310,7 @@ export default function StatisticsPage() {
                 <span className="metric-icon">🔑</span>
                 <h3>Total Keys Derived</h3>
               </div>
-              <div className="metric-value">{stats?.keyManagement.totalKeysDerivied || 0}</div>
+              <div className="metric-value">{stats?.keyManagement.totalKeysDerivied ?? 0}</div>
               <div className="metric-footer">All-time count</div>
             </div>
 
@@ -328,7 +328,7 @@ export default function StatisticsPage() {
         </section>
 
         {/* Event Types Breakdown */}
-        {auditStats?.eventTypes && Object.keys(auditStats.eventTypes).length > 0 && (
+        {auditStats?.eventTypes && Object.keys(auditStats.entriesByType).length > 0 && (
           <section style={{
             background: 'white',
             borderRadius: '12px',
@@ -338,11 +338,11 @@ export default function StatisticsPage() {
           }}>
             <h2 style={{ marginBottom: '1rem' }}>Event Type Distribution</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {Object.entries(auditStats.eventTypes)
+              {Object.entries(auditStats.entriesByType)
                 .sort(([, a], [, b]) => b - a)
                 .map(([eventType, count]) => {
-                  const percentage = auditStats.totalEvents > 0
-                    ? ((count / auditStats.totalEvents) * 100).toFixed(1)
+                  const percentage = auditStats.totalEntries > 0
+                    ? ((count / auditStats.totalEntries) * 100).toFixed(1)
                     : '0';
                   return (
                     <div

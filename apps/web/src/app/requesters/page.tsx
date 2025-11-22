@@ -231,9 +231,9 @@ export default function RequestersPage() {
   }
 
   const totalRequesters = requesters.length;
-  const enabledRequesters = requesters.filter(r => r.enabled).length;
-  const disabledRequesters = requesters.filter(r => !r.enabled).length;
-  const totalApiKeys = requesters.reduce((sum, r) => sum + r.apiKeys.length, 0);
+  const enabledRequesters = requesters.filter((r: typeof requesters[number]) => r.enabled).length;
+  const disabledRequesters = requesters.filter((r: typeof requesters[number]) => !r.enabled).length;
+  const totalApiKeys = requesters.reduce((sum: number, r: typeof requesters[number]) => sum + r.apiKeys.length, 0);
 
   return (
     <div className="container">
@@ -342,7 +342,7 @@ export default function RequestersPage() {
           </div>
         ) : (
           <div className="cards-grid">
-            {filteredRequesters.map((requester) => (
+            {filteredRequesters.map((requester: typeof filteredRequesters[number]) => (
               <div key={requester.id} className="card">
                 <div className="card-header">
                   <div>
