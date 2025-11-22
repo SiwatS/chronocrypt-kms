@@ -41,8 +41,14 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'chronocrypt-admin-change-me';
 
 // Authentication middleware
-function requireAuth({ cookie: cookies, set }: any) {
-  const sessionId = cookies.sessionId;
+function requireAuth({ headers, set }: any) {
+  // Check Authorization header first (Bearer token)
+  const authHeader = headers.authorization || headers.Authorization;
+  let sessionId: string | null = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    sessionId = authHeader.substring(7);
+  }
 
   if (!sessionId || !sessions.has(sessionId)) {
     set.status = 401;
@@ -129,20 +135,12 @@ const app = new Elysia()
           createdAt: Date.now()
         });
 
-        // Set cookie
-        cookies.sessionId = {
-          value: sessionId,
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 24 * 60 * 60, // 24 hours in seconds
-          path: '/'
-        };
-
+        // Return token in response body for Authorization header
         return {
           success: true,
           message: 'Login successful',
-          user: { username }
+          user: { username },
+          token: sessionId
         };
       }
 
@@ -171,7 +169,8 @@ const app = new Elysia()
         message: t.String(),
         user: t.Object({
           username: t.String()
-        })
+        }),
+        token: t.String()
       }),
       401: t.Object({
         success: t.Boolean(),
@@ -186,7 +185,7 @@ const app = new Elysia()
     detail: {
       tags: ['Authentication'],
       summary: 'Login',
-      description: 'Authenticate with username and password. Returns a session cookie on success.'
+      description: 'Authenticate with username and password. Returns a session token for use in Authorization header.'
     }
   })
 
@@ -227,8 +226,14 @@ const app = new Elysia()
    * GET /api/auth/session
    * Check current session status
    */
-  .get('/api/auth/session', ({ cookie: cookies, set }) => {
-    const sessionId = cookies.sessionId;
+  .get('/api/auth/session', ({ headers, set }) => {
+    // Check Authorization header
+    const authHeader = headers.authorization || headers.Authorization;
+    let sessionId: string | null = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      sessionId = authHeader.substring(7);
+    }
 
     if (!sessionId || !sessions.has(sessionId)) {
       set.status = 401;

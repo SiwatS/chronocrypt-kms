@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,16 +19,21 @@ export default function LoginPage() {
 
       if (apiError) {
         setError(apiError.value?.message || 'Login failed');
+        setLoading(false);
       } else if (data?.success) {
-        // Login successful, redirect to dashboard
-        router.push('/');
-        router.refresh();
+        // Store session token in localStorage
+        // Backend should return a token instead of using cookies
+        if (data.token) {
+          localStorage.setItem('sessionToken', data.token);
+        }
+        // Redirect to home page
+        window.location.href = '/';
       } else {
         setError('Login failed');
+        setLoading(false);
       }
     } catch (err) {
       setError('Failed to connect to server');
-    } finally {
       setLoading(false);
     }
   };

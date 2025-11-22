@@ -2,17 +2,32 @@
  * Elysia Eden API Client
  *
  * Type-safe API client using Eden Treaty for Elysia backend
+ * Uses /api base path which is proxied by Next.js rewrites (dev) or nginx (production)
  */
 
 import { treaty } from '@elysiajs/eden';
 import type { App } from '../../../backend/src/index';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Use window.location.origin to get full base URL
+// Next.js rewrites will proxy /api/* to backend
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return 'http://localhost:3000';
+};
 
-// Create typed Eden client with credentials
-export const api = treaty<App>(apiUrl, {
+export const api = treaty<App>(getBaseUrl(), {
   fetch: {
-    credentials: 'include', // Include cookies for authentication
+    credentials: 'include',
+  },
+  headers: () => {
+    // Dynamic headers - will be called on each request
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('sessionToken');
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    return {};
   },
 });
 

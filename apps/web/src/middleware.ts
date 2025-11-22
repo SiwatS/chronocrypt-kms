@@ -9,37 +9,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if user is authenticated by verifying session
-  const sessionId = request.cookies.get('sessionId');
-
-  if (!sessionId) {
-    // No session cookie, redirect to login
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Verify session with backend
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const response = await fetch(`${apiUrl}/api/auth/session`, {
-      headers: {
-        Cookie: `sessionId=${sessionId.value}`,
-      },
-    });
-
-    if (!response.ok || !(await response.json()).authenticated) {
-      // Invalid session, redirect to login
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Session valid, allow access
-    return NextResponse.next();
-  } catch (error) {
-    // Error checking session, redirect to login
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
-  }
+  // Middleware cannot access localStorage (client-side only)
+  // Auth will be handled client-side - just allow all routes for now
+  // Client-side components will redirect to login if no token in localStorage
+  return NextResponse.next();
 }
 
 export const config = {

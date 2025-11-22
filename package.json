@@ -8,13 +8,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
-    "dev:backend": "npm run dev -w apps/backend",
-    "dev:web": "npm run dev -w apps/web",
-    "build": "npm run build --workspaces --if-present",
-    "build:backend": "npm run build -w apps/backend",
-    "build:web": "npm run build -w apps/web",
-    "start": "npm run start --workspaces --if-present",
+    "dev": "bun --filter '*' dev",
+    "dev:backend": "bun --filter apps/backend dev",
+    "dev:web": "bun --filter apps/web dev",
+    "build": "bun --filter '*' build",
+    "build:backend": "bun --filter apps/backend build",
+    "build:web": "bun --filter apps/web build",
+    "start": "bun --filter '*' start",
+    "lint": "bun --filter '*' lint",
+    "lint:backend": "bun --filter apps/backend lint",
+    "lint:web": "bun --filter apps/web lint",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
   },
   "engines": {
