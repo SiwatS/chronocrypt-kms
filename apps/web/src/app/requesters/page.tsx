@@ -2,27 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { client } from '@/lib/eden-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 import { useAdmin } from '@/contexts/AdminContext';
 
-interface Requester {
-  id: string;
-  name: string;
-  description?: string;
-  enabled: boolean;
-  metadata?: any;
-  createdAt: string;
-  updatedAt: string;
-  apiKeys: Array<{
-    id: string;
-    keyId: string;
-    name: string;
-    enabled: boolean;
-    expiresAt?: string;
-    lastUsedAt?: string;
-    createdAt: string;
-  }>;
-}
+type Requester = any; // Will be inferred from edenFetch response
 
 export default function RequestersPage() {
   const router = useRouter();
@@ -68,7 +51,8 @@ export default function RequestersPage() {
 
     try {
       setLoading(true);
-      const response = await client.api.requesters.get({
+      const response = await fetch('/api/requesters', {
+        method: 'GET',
         headers: { Authorization: `Bearer ${sessionId}` }
       });
 
@@ -77,15 +61,15 @@ export default function RequestersPage() {
           logout();
           return;
         }
-        throw new Error('Failed to load requesters');
+        throw new Error(getErrorMessage(response.error) || 'Failed to load requesters');
       }
 
       if (response.data && 'requesters' in response.data) {
         setRequesters(response.data.requesters);
       }
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+    } catch (_err: unknown) {
+      setError(err instanceof Error ? _err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -155,7 +139,7 @@ export default function RequestersPage() {
     if (formData.metadata.trim()) {
       try {
         metadata = JSON.parse(formData.metadata);
-      } catch (err) {
+      } catch (_err: unknown) {
         setFormError('Invalid JSON in metadata field');
         return;
       }
@@ -165,22 +149,24 @@ export default function RequestersPage() {
     const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await client.api.requesters.post({
-        name: formData.name,
-        description: formData.description || undefined,
-        metadata
-      }, {
-        headers: { Authorization: `Bearer ${sessionId}` }
+      const response = await fetch('/api/requesters', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionId}` },
+        body: {
+          name: formData.name,
+          description: formData.description || undefined,
+          metadata
+        }
       });
 
       if (response.error) {
-        throw new Error('Failed to create requester');
+        throw new Error(getErrorMessage(response.error) || 'Failed to create requester');
       }
 
       setShowCreateModal(false);
       await loadRequesters();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create requester');
+    } catch (_err: unknown) {
+      setFormError(err instanceof Error ? _err.message : 'Failed to create requester');
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +188,7 @@ export default function RequestersPage() {
     if (formData.metadata.trim()) {
       try {
         metadata = JSON.parse(formData.metadata);
-      } catch (err) {
+      } catch (_err: unknown) {
         setFormError('Invalid JSON in metadata field');
         return;
       }
@@ -212,23 +198,26 @@ export default function RequestersPage() {
     const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await client.api.requesters[selectedRequester.id].put({
-        name: formData.name,
-        description: formData.description || undefined,
-        enabled: formData.enabled,
-        metadata
-      }, {
-        headers: { Authorization: `Bearer ${sessionId}` }
+      const response = await fetch('/api/requesters/:id', {
+        method: 'PUT',
+        params: { id: selectedRequester.id },
+        headers: { Authorization: `Bearer ${sessionId}` },
+        body: {
+          name: formData.name,
+          description: formData.description || undefined,
+          enabled: formData.enabled,
+          metadata
+        }
       });
 
       if (response.error) {
-        throw new Error('Failed to update requester');
+        throw new Error(getErrorMessage(response.error) || 'Failed to update requester');
       }
 
       setShowEditModal(false);
       await loadRequesters();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to update requester');
+    } catch (_err: unknown) {
+      setFormError(err instanceof Error ? _err.message : 'Failed to update requester');
     } finally {
       setSubmitting(false);
     }
@@ -241,18 +230,20 @@ export default function RequestersPage() {
     const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await client.api.requesters[selectedRequester.id].delete({
+      const response = await fetch('/api/requesters/:id', {
+        method: 'DELETE',
+        params: { id: selectedRequester.id },
         headers: { Authorization: `Bearer ${sessionId}` }
       });
 
       if (response.error) {
-        throw new Error('Failed to delete requester');
+        throw new Error(getErrorMessage(response.error) || 'Failed to delete requester');
       }
 
       setShowDeleteModal(false);
       await loadRequesters();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete requester');
+    } catch (_err: unknown) {
+      setError(err instanceof Error ? _err.message : 'Failed to delete requester');
     } finally {
       setSubmitting(false);
     }
@@ -262,19 +253,22 @@ export default function RequestersPage() {
     const sessionId = localStorage.getItem('sessionId');
 
     try {
-      const response = await client.api.requesters[requester.id].put({
-        enabled: !requester.enabled
-      }, {
-        headers: { Authorization: `Bearer ${sessionId}` }
+      const response = await fetch('/api/requesters/:id', {
+        method: 'PUT',
+        params: { id: requester.id },
+        headers: { Authorization: `Bearer ${sessionId}` },
+        body: {
+          enabled: !requester.enabled
+        }
       });
 
       if (response.error) {
-        throw new Error('Failed to update requester');
+        throw new Error(getErrorMessage(response.error) || 'Failed to update requester');
       }
 
       await loadRequesters();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle status');
+    } catch (_err: unknown) {
+      setError(err instanceof Error ? _err.message : 'Failed to toggle status');
     }
   };
 

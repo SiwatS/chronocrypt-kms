@@ -2,18 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 
-interface Policy {
-  id: string;
-  name: string;
-  type: string;
-  enabled: boolean;
-  priority: number;
-  config: any;
-  description?: string;
-  createdAt: number;
-}
+type Policy = any; // Will be inferred from edenFetch response
 
 export default function PoliciesPage() {
   const router = useRouter();
@@ -37,18 +28,20 @@ export default function PoliciesPage() {
   const loadPolicies = async () => {
     try {
       setLoading(true);
-      const { data, error: apiError, status } = await api.api.policies.get();
+      const response = await fetch('/api/policies', {
+        method: 'GET'
+      });
 
-      if (apiError) {
-        if (status === 401) {
+      if (response.error) {
+        if (response.status === 401) {
           router.push('/login');
           return;
         }
-        throw new Error('Failed to load policies');
+        throw new Error(getErrorMessage(response.error) || 'Failed to load policies');
       }
 
-      if (data && Array.isArray(data)) {
-        setPolicies(data.sort((a, b) => b.priority - a.priority));
+      if (response.data && Array.isArray(response.data)) {
+        setPolicies(response.data.sort((a: any, b: any) => b.priority - a.priority));
       }
       setError(null);
     } catch (err) {
@@ -68,16 +61,19 @@ export default function PoliciesPage() {
         return;
       }
 
-      const { error: apiError } = await api.api.policies.post({
-        name: formName,
-        type: formType,
-        priority: formPriority,
-        config: configObj,
-        description: formDescription || undefined,
+      const response = await fetch('/api/policies', {
+        method: 'POST',
+        body: {
+          name: formName,
+          type: formType,
+          priority: formPriority,
+          config: configObj,
+          description: formDescription || undefined,
+        }
       });
 
-      if (apiError) {
-        throw new Error('Failed to create policy');
+      if (response.error) {
+        throw new Error(getErrorMessage(response.error) || 'Failed to create policy');
       }
 
       // Reset form
@@ -97,14 +93,15 @@ export default function PoliciesPage() {
 
   const handleTogglePolicy = async (policy: Policy) => {
     try {
-      const endpoint = policy.enabled
-        ? api.api.policies[policy.id].disable
-        : api.api.policies[policy.id].enable;
+      const endpoint = policy.enabled ? 'disable' : 'enable';
 
-      const { error: apiError } = await endpoint.put();
+      const response = await fetch(`/api/policies/:id/${endpoint}`, {
+        method: 'PUT',
+        params: { id: policy.id }
+      });
 
-      if (apiError) {
-        throw new Error(`Failed to ${policy.enabled ? 'disable' : 'enable'} policy`);
+      if (response.error) {
+        throw new Error(getErrorMessage(response.error) || `Failed to ${policy.enabled ? 'disable' : 'enable'} policy`);
       }
 
       await loadPolicies();
@@ -119,7 +116,12 @@ export default function PoliciesPage() {
     }
 
     try {
-      const { error: apiError } = await api.api.policies[policyId].delete();
+      const response = await fetch('/api/policies/:id', {
+        method: 'DELETE',
+        params: { id: policyId }
+      });
+
+      const apiError = response.error;
 
       if (apiError) {
         throw new Error('Failed to delete policy');

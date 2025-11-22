@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { client } from '@/lib/eden-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 import { useAdmin } from '@/contexts/AdminContext';
 
 export default function Dashboard() {
@@ -29,22 +29,25 @@ export default function Dashboard() {
 
     try {
       const [statsRes, healthRes, auditRes] = await Promise.all([
-        client.api.stats.get({
+        fetch('/api/stats', {
+          method: 'GET',
           headers: { Authorization: `Bearer ${sessionId}` }
         }),
-        client.api.health.get(),
-        client.api['audit-logs'].get({
-          query: { limit: '10' },
+        fetch('/api/health', {
+          method: 'GET'
+        }),
+        fetch('/api/audit-logs?limit=10', {
+          method: 'GET',
           headers: { Authorization: `Bearer ${sessionId}` }
         })
       ]);
 
-      if (statsRes.error) throw new Error('Failed to load stats');
-      if (healthRes.error) throw new Error('Failed to load health');
+      if (statsRes.error) throw new Error(getErrorMessage(statsRes.error) || 'Failed to load stats');
+      if (healthRes.error) throw new Error(getErrorMessage(healthRes.error) || 'Failed to load health');
 
       setStats(statsRes.data);
       setHealth(healthRes.data);
-      setRecentActivity(auditRes.data && 'entries' in auditRes.data ? auditRes.data.entries : []);
+      setRecentActivity(auditRes.data && 'entries' in auditRes.data ? (auditRes.data.entries || []) : []);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -104,33 +107,6 @@ export default function Dashboard() {
           <div>
             <h1 className="dashboard-title">ChronoCrypt KMS</h1>
             <p className="dashboard-subtitle">Key Management System Dashboard</p>
-          </div>
-          <div className="dashboard-status" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            {user && (
-              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                Logged in as <strong>{user.username}</strong>
-              </span>
-            )}
-            <span className={`status-badge ${health?.status === 'healthy' ? 'status-healthy' : 'status-error'}`}>
-              {health?.status === 'healthy' ? '✓ Operational' : '⚠ Issues Detected'}
-            </span>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '0.5rem 1rem',
-                fontSize: '0.875rem',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.375rem',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
-            >
-              Logout
-            </button>
           </div>
         </header>
 

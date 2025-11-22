@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 
-interface KeyStatus {
-  masterKeyStatus: string;
-  algorithm: string;
-  createdAt: number;
-}
+type KeyStatus = any; // Will be inferred from edenFetch response
 
 export default function KeysPage() {
   const router = useRouter();
@@ -26,8 +22,12 @@ export default function KeysPage() {
     try {
       setLoading(true);
       const [publicKeyRes, statusRes] = await Promise.all([
-        api.api.keys['master-public'].get(),
-        api.api.keys.status.get(),
+        fetch('/api/keys/master-public', {
+          method: 'GET'
+        }),
+        fetch('/api/keys/status', {
+          method: 'GET'
+        }),
       ]);
 
       if (publicKeyRes.error) {
@@ -35,11 +35,11 @@ export default function KeysPage() {
           router.push('/login');
           return;
         }
-        throw new Error('Failed to load public key');
+        throw new Error(getErrorMessage(publicKeyRes.error) || 'Failed to load public key');
       }
 
       if (statusRes.error) {
-        throw new Error('Failed to load key status');
+        throw new Error(getErrorMessage(statusRes.error) || 'Failed to load key status');
       }
 
       if (publicKeyRes.data && 'publicKey' in publicKeyRes.data) {
@@ -48,10 +48,10 @@ export default function KeysPage() {
         const keyString = typeof jwk === 'string' ? jwk : JSON.stringify(jwk, null, 2);
         setPublicKey(keyString);
       }
-      setKeyStatus(statusRes.data as KeyStatus);
+      setKeyStatus(statusRes.data);
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load key data');
+    } catch (_err: unknown) {
+      setError(_err instanceof Error ? _err.message : 'Failed to load key data');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export default function KeysPage() {
       await navigator.clipboard.writeText(publicKey);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch (_err: unknown) {
       alert('Failed to copy to clipboard');
     }
   };

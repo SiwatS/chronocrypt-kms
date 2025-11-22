@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { client } from '@/lib/eden-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function SetupPage() {
       // We'll use a different approach - just try to login page
       // For now, assume setup is needed if we're on this page
       setLoading(false);
-    } catch (error) {
+    } catch (_error) {
       setLoading(false);
     }
   };
@@ -56,10 +56,13 @@ export default function SetupPage() {
     setSubmitting(true);
 
     try {
-      const response = await client.api.admin.setup.post({
-        username: formData.username,
-        password: formData.password,
-        email: formData.email || undefined
+      const response = await fetch('/api/admin/setup', {
+        method: 'POST',
+        body: {
+          username: formData.username,
+          password: formData.password,
+          email: formData.email || undefined
+        }
       });
 
       if (response.error) {
@@ -67,13 +70,13 @@ export default function SetupPage() {
           setSetupComplete(true);
           setTimeout(() => router.push('/login'), 2000);
         } else {
-          setError(response.error.message || 'Setup failed');
+          setError(getErrorMessage(response.error) || 'Setup failed');
         }
       } else {
         // Setup successful, redirect to login
         setTimeout(() => router.push('/login'), 2000);
       }
-    } catch (err) {
+    } catch (_err: unknown) {
       setError('Failed to complete setup. Please try again.');
     } finally {
       setSubmitting(false);

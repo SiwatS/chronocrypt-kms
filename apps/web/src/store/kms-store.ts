@@ -73,7 +73,7 @@ interface KMSState {
   loadDashboardData: () => Promise<void>;
 }
 
-export const useKMSStore = create<KMSState>((set, get) => ({
+export const useKMSStore = create<KMSState>((set, _get) => ({
   // Initial state
   stats: null,
   recentActivity: [],

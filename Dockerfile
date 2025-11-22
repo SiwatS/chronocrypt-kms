@@ -38,12 +38,12 @@ WORKDIR /app
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/backend/tsconfig.json ./apps/backend/
 
+# Copy backend source first
+COPY apps/backend ./apps/backend
+
 # Install backend dependencies
 WORKDIR /app/apps/backend
 RUN bun install --production
-
-# Copy backend source
-COPY apps/backend ./
 
 # Generate Prisma Client
 RUN bun run db:generate || true

@@ -135,7 +135,7 @@ export class PrismaPolicyStore {
       await this.upsert({
         id: 'allow-all',
         name: 'Allow All',
-        type: 'built-in',
+        type: 'custom',
         priority: -1000,
         enabled: true,
         description: 'Allows all access requests (for development)',

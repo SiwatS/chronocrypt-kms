@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { client } from '@/lib/eden-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,24 +19,27 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const response = await client.api.admin.login.post({
-        username: formData.username,
-        password: formData.password
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        body: {
+          username: formData.username,
+          password: formData.password
+        }
       });
 
       if (response.error) {
         if (response.status === 401) {
           setError('Invalid username or password');
         } else {
-          setError('Login failed. Please try again.');
+          setError(getErrorMessage(response.error) || 'Login failed. Please try again.');
         }
-      } else if (response.data) {
+      } else if (response.data && 'sessionId' in response.data) {
         // Store session token
-        localStorage.setItem('sessionId', response.data.sessionId);
+        localStorage.setItem('sessionId', response.data.sessionId as string);
         // Redirect to dashboard
         router.push('/');
       }
-    } catch (err) {
+    } catch (_err: unknown) {
       setError('Failed to connect to server');
     } finally {
       setSubmitting(false);

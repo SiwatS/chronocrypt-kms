@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { client } from '@/lib/eden-client';
+import fetch from '@/lib/eden-client';
 
 interface AdminContextType {
   isAuthenticated: boolean;
@@ -41,7 +41,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await client.api.admin.session.get({
+      const response = await fetch('/api/admin/session', {
+        method: 'GET',
         headers: {
           Authorization: `Bearer ${sessionId}`
         }
@@ -60,7 +61,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           router.push('/login');
         }
       }
-    } catch (error) {
+    } catch (_error) {
       localStorage.removeItem('sessionId');
       setIsAuthenticated(false);
       setUsername(null);
@@ -84,12 +85,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
     if (sessionId) {
       try {
-        await client.api.admin.logout.post({
+        await fetch('/api/admin/logout', {
+          method: 'POST',
           headers: {
             Authorization: `Bearer ${sessionId}`
           }
         });
-      } catch (error) {
+      } catch (_error) {
         // Ignore errors on logout
       }
     }

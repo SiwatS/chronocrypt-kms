@@ -2,16 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import fetch, { getErrorMessage } from '@/lib/eden-client';
 
-interface AuditLogEntry {
-  id: string;
-  eventType: string;
-  actor: string;
-  timestamp: number;
-  success: boolean;
-  metadata?: any;
-}
+type AuditLogEntry = any; // Will be inferred from edenFetch response
 
 export default function AuditLogsPage() {
   const router = useRouter();
@@ -46,9 +39,16 @@ export default function AuditLogsPage() {
       if (actorFilter) query.actor = actorFilter;
       if (successFilter !== 'all') query.success = successFilter;
 
+      // Build query string
+      const queryString = new URLSearchParams(query).toString();
+
       const [logsRes, statsRes] = await Promise.all([
-        api.api['audit-logs'].get({ query }),
-        api.api['audit-logs'].stats.get(),
+        fetch(`/api/audit-logs?${queryString}`, {
+          method: 'GET'
+        }),
+        fetch('/api/audit-logs/stats', {
+          method: 'GET'
+        }),
       ]);
 
       if (logsRes.error) {
@@ -56,18 +56,20 @@ export default function AuditLogsPage() {
           router.push('/login');
           return;
         }
-        throw new Error('Failed to load audit logs');
+        throw new Error(getErrorMessage(logsRes.error) || 'Failed to load audit logs');
       }
 
       if (statsRes.error) {
-        throw new Error('Failed to load statistics');
+        throw new Error(getErrorMessage(statsRes.error) || 'Failed to load statistics');
       }
 
       if (logsRes.data && 'entries' in logsRes.data) {
-        setEntries(logsRes.data.entries);
-        setTotal(logsRes.data.total);
+        setEntries(logsRes.data.entries || []);
+        setTotal(logsRes.data.total || 0);
       }
-      setStats(statsRes.data);
+      if (statsRes.data && 'totalEvents' in statsRes.data) {
+        setStats(statsRes.data);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
