@@ -63,21 +63,55 @@ model MasterKey {
   @@map("master_keys")
 }
 
-// Requester Management (for future use)
+// Admin User Management - WHO can manage the KMS via web interface
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  email        String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([username])
+  @@index([enabled])
+  @@map("admins")
+}
+
+// Requester Management - WHO can request access
 model Requester {
   id          String   @id @default(cuid())
-  requesterId String   @unique
-  name        String?
-  department  String?
-  email       String?
+  name        String
+  description String?
   enabled     Boolean  @default(true)
   metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([requesterId])
+  apiKeys     ApiKey[]
+
   @@index([enabled])
   @@map("requesters")
+}
+
+// API Key Management - Authentication tokens for requesters
+model ApiKey {
+  id          String    @id @default(cuid())
+  keyId       String    @unique  // Public identifier (e.g., "ck_live_abc123")
+  keySecret   String              // bcrypt hashed secret
+  name        String              // "Production Server", "Analytics Pipeline"
+  requesterId String
+  requester   Requester @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  enabled     Boolean   @default(true)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  createdBy   String              // Admin who created it
+
+  @@index([requesterId])
+  @@index([enabled])
+  @@index([keyId])
+  @@map("api_keys")
 }
 
 // Access Request History (for tracking)

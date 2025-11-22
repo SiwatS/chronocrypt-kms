@@ -7,63 +7,28 @@
 import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
-import { cookie } from '@elysiajs/cookie';
+import { PrismaClient } from '@prisma/client';
 import { KMSService } from './services/kms';
+import { createApiKeyMiddleware, generateApiKeyPair, hashApiKeySecret } from './auth/api-keys';
+import {
+  authenticateAdmin,
+  createSession,
+  validateSession,
+  deleteSession,
+  createAdminMiddleware,
+  hashPassword
+} from './auth/admin';
 import type { AccessRequest, TimeRange } from '@siwats/chronocrypt';
+
+// Initialize Prisma Client
+const prisma = new PrismaClient();
 
 // Initialize KMS Service
 let kms: KMSService;
 
-// Session management
-const sessions = new Map<string, { username: string; createdAt: number }>();
-
-// Generate session ID
-function generateSessionId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-}
-
-// Clean up expired sessions (older than 24 hours)
-function cleanupSessions() {
-  const now = Date.now();
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-  for (const [sessionId, session] of sessions.entries()) {
-    if (now - session.createdAt > maxAge) {
-      sessions.delete(sessionId);
-    }
-  }
-}
-
-// Run cleanup every hour
-setInterval(cleanupSessions, 60 * 60 * 1000);
-
-// Authentication credentials from environment
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'chronocrypt-admin-change-me';
-
-// Authentication middleware
-function requireAuth({ headers, set }: any) {
-  // Check Authorization header first (Bearer token)
-  const authHeader = headers.authorization || headers.Authorization;
-  let sessionId: string | null = null;
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    sessionId = authHeader.substring(7);
-  }
-
-  if (!sessionId || !sessions.has(sessionId)) {
-    set.status = 401;
-    return {
-      error: 'Unauthorized',
-      message: 'Authentication required'
-    };
-  }
-
-  // Update session last access
-  const session = sessions.get(sessionId);
-  if (session) {
-    session.createdAt = Date.now(); // Refresh session
-  }
-}
+// Authentication Middlewares
+const requireApiKey = createApiKeyMiddleware(prisma);
+const requireAdmin = createAdminMiddleware(prisma);
 
 const app = new Elysia()
   .use(cors({
@@ -77,7 +42,6 @@ const app = new Elysia()
       return false;
     }
   }))
-  .use(cookie())
   .use(swagger({
     documentation: {
       info: {
@@ -90,8 +54,9 @@ const app = new Elysia()
         }
       },
       tags: [
-        { name: 'Authentication', description: 'Authentication and session management' },
         { name: 'System', description: 'System information and health checks' },
+        { name: 'Requesters', description: 'Requester management' },
+        { name: 'API Keys', description: 'API key management and authentication' },
         { name: 'Access Requests', description: 'Access request management and authorization' },
         { name: 'Audit Logs', description: 'Audit log querying and statistics' },
         { name: 'Policies', description: 'Access control policy management' },
@@ -108,194 +73,8 @@ const app = new Elysia()
     console.log('🔐 Initializing ChronoCrypt KMS...');
     kms = await KMSService.initialize('kms-main');
     console.log('✅ KMS Service initialized');
-    console.log(`👤 Admin user: ${ADMIN_USERNAME}`);
-    if (ADMIN_PASSWORD === 'chronocrypt-admin-change-me') {
-      console.warn('⚠️  WARNING: Using default admin password! Set ADMIN_PASSWORD environment variable.');
-    }
-  })
-
-  // ============================================================================
-  // AUTHENTICATION ENDPOINTS (Public)
-  // ============================================================================
-
-  /**
-   * POST /api/auth/login
-   * Login with username and password
-   */
-  .post('/api/auth/login', async ({ body, cookie: cookies, set }) => {
-    try {
-      const { username, password } = body as { username: string; password: string };
-
-      // Validate credentials
-      if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        // Create session
-        const sessionId = generateSessionId();
-        sessions.set(sessionId, {
-          username,
-          createdAt: Date.now()
-        });
-
-        // Return token in response body for Authorization header
-        return {
-          success: true,
-          message: 'Login successful',
-          user: { username },
-          token: sessionId
-        };
-      }
-
-      // Invalid credentials
-      set.status = 401;
-      return {
-        success: false,
-        error: 'Invalid credentials',
-        message: 'Username or password is incorrect'
-      };
-    } catch (error) {
-      set.status = 500;
-      return {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }, {
-    body: t.Object({
-      username: t.String({ description: 'Username', example: 'admin' }),
-      password: t.String({ description: 'Password' })
-    }),
-    response: {
-      200: t.Object({
-        success: t.Boolean(),
-        message: t.String(),
-        user: t.Object({
-          username: t.String()
-        }),
-        token: t.String()
-      }),
-      401: t.Object({
-        success: t.Boolean(),
-        error: t.String(),
-        message: t.String()
-      }),
-      500: t.Object({
-        error: t.String(),
-        message: t.String()
-      })
-    },
-    detail: {
-      tags: ['Authentication'],
-      summary: 'Login',
-      description: 'Authenticate with username and password. Returns a session token for use in Authorization header.'
-    }
-  })
-
-  /**
-   * POST /api/auth/logout
-   * Logout and destroy session
-   */
-  .post('/api/auth/logout', ({ cookie: cookies }) => {
-    const sessionId = cookies.sessionId;
-
-    if (sessionId) {
-      sessions.delete(sessionId);
-      cookies.sessionId = {
-        value: '',
-        maxAge: 0
-      };
-    }
-
-    return {
-      success: true,
-      message: 'Logged out successfully'
-    };
-  }, {
-    response: {
-      200: t.Object({
-        success: t.Boolean(),
-        message: t.String()
-      })
-    },
-    detail: {
-      tags: ['Authentication'],
-      summary: 'Logout',
-      description: 'Logout and destroy the current session'
-    }
-  })
-
-  /**
-   * GET /api/auth/session
-   * Check current session status
-   */
-  .get('/api/auth/session', ({ headers, set }) => {
-    // Check Authorization header
-    const authHeader = headers.authorization || headers.Authorization;
-    let sessionId: string | null = null;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      sessionId = authHeader.substring(7);
-    }
-
-    if (!sessionId || !sessions.has(sessionId)) {
-      set.status = 401;
-      return {
-        authenticated: false,
-        message: 'No active session'
-      };
-    }
-
-    const session = sessions.get(sessionId);
-    return {
-      authenticated: true,
-      user: {
-        username: session!.username
-      }
-    };
-  }, {
-    response: {
-      200: t.Object({
-        authenticated: t.Boolean(),
-        user: t.Optional(t.Object({
-          username: t.String()
-        }))
-      }),
-      401: t.Object({
-        authenticated: t.Boolean(),
-        message: t.String()
-      })
-    },
-    detail: {
-      tags: ['Authentication'],
-      summary: 'Check session',
-      description: 'Check if the current session is valid and authenticated'
-    }
-  })
-
-  /**
-   * GET /api/auth/setup-required
-   * Check if initial setup is required
-   */
-  .get('/api/auth/setup-required', () => {
-    // If using default password, setup is required
-    const setupRequired = ADMIN_PASSWORD === 'chronocrypt-admin-change-me';
-
-    return {
-      setupRequired,
-      message: setupRequired
-        ? 'Initial setup required. Please set ADMIN_PASSWORD environment variable.'
-        : 'Setup complete'
-    };
-  }, {
-    response: {
-      200: t.Object({
-        setupRequired: t.Boolean(),
-        message: t.String()
-      })
-    },
-    detail: {
-      tags: ['Authentication'],
-      summary: 'Check setup status',
-      description: 'Check if initial setup is required (default password check)'
-    }
+    console.log('🔑 API Key authentication enabled');
+    console.log('📊 Prisma Client connected');
   })
 
   // ============================================================================
@@ -307,11 +86,13 @@ const app = new Elysia()
    */
   .get('/', () => ({
     name: 'ChronoCrypt KMS API',
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'running',
-    description: 'Key Management System for temporal data access control',
+    description: 'Key Management System for temporal data access control with API key authentication',
+    authentication: 'API Key (Authorization: ApiKey <keyId>.<keySecret>)',
     endpoints: {
-      auth: '/api/auth/login',
+      requesters: '/api/requesters',
+      apiKeys: '/api/api-keys',
       accessRequests: '/api/access-requests',
       auditLogs: '/api/audit-logs',
       policies: '/api/policies',
@@ -331,14 +112,15 @@ const app = new Elysia()
   /**
    * Health check endpoint (Public)
    */
-  .get('/api/health', () => ({
+  .get('/api/health', async () => ({
     status: 'healthy',
     timestamp: Date.now(),
     components: {
       keyHolder: 'operational',
       auditLog: 'operational',
       policyEngine: 'operational',
-      authentication: sessions.size > 0 ? 'active' : 'idle'
+      database: 'operational',
+      authentication: 'api-key'
     }
   }), {
     detail: {
@@ -349,11 +131,523 @@ const app = new Elysia()
   })
 
   // ============================================================================
-  // PROTECTED ROUTES - Require Authentication
+  // ADMIN AUTHENTICATION (for Web UI)
+  // ============================================================================
+
+  /**
+   * POST /api/admin/setup
+   * Create initial admin account (only works if no admins exist)
+   */
+  .post('/api/admin/setup', async ({ body, set }) => {
+    try {
+      const { username, password, email } = body as {
+        username: string;
+        password: string;
+        email?: string;
+      };
+
+      // Check if any admins already exist
+      const existingAdminCount = await prisma.admin.count();
+      if (existingAdminCount > 0) {
+        set.status = 403;
+        return {
+          error: 'Forbidden',
+          message: 'Admin accounts already exist. Use the admin panel to create new admins.'
+        };
+      }
+
+      const passwordHash = await hashPassword(password);
+      const admin = await prisma.admin.create({
+        data: {
+          username,
+          passwordHash,
+          email,
+          enabled: true
+        }
+      });
+
+      return {
+        message: 'Initial admin account created successfully',
+        admin: {
+          id: admin.id,
+          username: admin.username,
+          email: admin.email
+        }
+      };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    body: t.Object({
+      username: t.String({ minLength: 3, description: 'Admin username', example: 'admin' }),
+      password: t.String({ minLength: 8, description: 'Admin password' }),
+      email: t.Optional(t.String({ format: 'email', description: 'Admin email' }))
+    }),
+    detail: {
+      tags: ['Admin'],
+      summary: 'Setup initial admin',
+      description: 'Create the first admin account. Only works if no admins exist yet.',
+    }
+  })
+
+  /**
+   * POST /api/admin/login
+   * Admin login - returns session token
+   */
+  .post('/api/admin/login', async ({ body, set }) => {
+    try {
+      const { username, password } = body as {
+        username: string;
+        password: string;
+      };
+
+      const admin = await authenticateAdmin(prisma, username, password);
+      if (!admin) {
+        set.status = 401;
+        return {
+          error: 'Unauthorized',
+          message: 'Invalid username or password'
+        };
+      }
+
+      const sessionId = createSession(admin.adminId, admin.username);
+
+      return {
+        sessionId,
+        admin: {
+          username: admin.username
+        }
+      };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    body: t.Object({
+      username: t.String({ description: 'Admin username' }),
+      password: t.String({ description: 'Admin password' })
+    }),
+    detail: {
+      tags: ['Admin'],
+      summary: 'Admin login',
+      description: 'Authenticate admin and receive session token',
+    }
+  })
+
+  /**
+   * POST /api/admin/logout
+   * Admin logout - destroys session
+   */
+  .post('/api/admin/logout', async ({ headers, set }) => {
+    try {
+      const sessionId = headers['authorization']?.replace('Bearer ', '');
+      if (sessionId) {
+        deleteSession(sessionId);
+      }
+
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['Admin'],
+      summary: 'Admin logout',
+      description: 'Destroy admin session',
+    }
+  })
+
+  /**
+   * GET /api/admin/session
+   * Check session validity
+   */
+  .get('/api/admin/session', async ({ headers, set }) => {
+    try {
+      const sessionId = headers['authorization']?.replace('Bearer ', '');
+      if (!sessionId) {
+        set.status = 401;
+        return { valid: false, error: 'No session provided' };
+      }
+
+      const session = validateSession(sessionId);
+      if (!session) {
+        set.status = 401;
+        return { valid: false, error: 'Invalid or expired session' };
+      }
+
+      return {
+        valid: true,
+        admin: {
+          username: session.username
+        }
+      };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['Admin'],
+      summary: 'Check session',
+      description: 'Validate current admin session',
+    }
+  })
+
+  // ============================================================================
+  // REQUESTER MANAGEMENT (Admin-protected)
+  // ============================================================================
+
+  .guard({ beforeHandle: requireAdmin }, (app) => app
+  /**
+   * GET /api/requesters
+   * List all requesters
+   */
+  .get('/api/requesters', async ({ set }) => {
+    try {
+      const requesters = await prisma.requester.findMany({
+        include: {
+          apiKeys: {
+            select: {
+              id: true,
+              keyId: true,
+              name: true,
+              enabled: true,
+              expiresAt: true,
+              lastUsedAt: true,
+              createdAt: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return { requesters };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['Requesters'],
+      summary: 'List requesters',
+      description: 'Get all requesters with their API keys (secrets not included)'
+    }
+  })
+
+  /**
+   * POST /api/requesters
+   * Create a new requester
+   */
+  .post('/api/requesters', async ({ body, set }) => {
+    try {
+      const { name, description, metadata } = body as {
+        name: string;
+        description?: string;
+        metadata?: any;
+      };
+
+      const requester = await prisma.requester.create({
+        data: { name, description, metadata }
+      });
+
+      set.status = 201;
+      return requester;
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    body: t.Object({
+      name: t.String({ description: 'Requester name', example: 'Analytics Team' }),
+      description: t.Optional(t.String({ description: 'Description', example: 'Data analytics team' })),
+      metadata: t.Optional(t.Any({ description: 'Additional metadata' }))
+    }),
+    detail: {
+      tags: ['Requesters'],
+      summary: 'Create requester',
+      description: 'Create a new requester who can request access to encrypted data'
+    }
+  })
+
+  /**
+   * PUT /api/requesters/:id
+   * Update a requester
+   */
+  .put('/api/requesters/:id', async ({ params, body, set }) => {
+    try {
+      const { name, description, enabled, metadata } = body as {
+        name?: string;
+        description?: string;
+        enabled?: boolean;
+        metadata?: any;
+      };
+
+      const requester = await prisma.requester.update({
+        where: { id: params.id },
+        data: { name, description, enabled, metadata }
+      });
+
+      return requester;
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['Requesters'],
+      summary: 'Update requester',
+      description: 'Update requester information'
+    }
+  })
+
+  /**
+   * DELETE /api/requesters/:id
+   * Delete a requester (cascades to API keys)
+   */
+  .delete('/api/requesters/:id', async ({ params, set }) => {
+    try {
+      await prisma.requester.delete({
+        where: { id: params.id }
+      });
+
+      return { success: true, message: 'Requester deleted' };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['Requesters'],
+      summary: 'Delete requester',
+      description: 'Delete a requester and all associated API keys'
+    }
+  })
+
+  // ============================================================================
+  // API KEY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * POST /api/requesters/:id/api-keys
+   * Generate a new API key for a requester
+   */
+  .post('/api/requesters/:id/api-keys', async ({ params, body, set }) => {
+    try {
+      const { name, expiresAt } = body as {
+        name: string;
+        expiresAt?: string;
+      };
+
+      // Generate API key pair
+      const { keyId, keySecret } = generateApiKeyPair();
+      const hashedSecret = await hashApiKeySecret(keySecret);
+
+      // Create API key in database
+      const apiKey = await prisma.apiKey.create({
+        data: {
+          keyId,
+          keySecret: hashedSecret,
+          name,
+          requesterId: params.id,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          createdBy: 'system' // TODO: Get from auth context when admin auth is added
+        }
+      });
+
+      set.status = 201;
+
+      // Return the full API key (this is the ONLY time the secret is shown)
+      return {
+        apiKey: {
+          id: apiKey.id,
+          keyId: apiKey.keyId,
+          name: apiKey.name,
+          requesterId: apiKey.requesterId,
+          enabled: apiKey.enabled,
+          expiresAt: apiKey.expiresAt,
+          createdAt: apiKey.createdAt
+        },
+        fullApiKey: `${keyId}.${keySecret}`,
+        warning: 'Save this key now! It will not be shown again.'
+      };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    body: t.Object({
+      name: t.String({ description: 'API key name', example: 'Production Server' }),
+      expiresAt: t.Optional(t.String({ description: 'Expiration date (ISO 8601)', example: '2025-12-31T23:59:59Z' }))
+    }),
+    detail: {
+      tags: ['API Keys'],
+      summary: 'Generate API key',
+      description: 'Generate a new API key for a requester. The secret is only shown once!'
+    }
+  })
+
+  /**
+   * GET /api/api-keys
+   * List all API keys (no secrets)
+   */
+  .get('/api/api-keys', async ({ set }) => {
+    try {
+      const apiKeys = await prisma.apiKey.findMany({
+        include: {
+          requester: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return {
+        apiKeys: apiKeys.map(key => ({
+          id: key.id,
+          keyId: key.keyId,
+          name: key.name,
+          requester: key.requester,
+          enabled: key.enabled,
+          expiresAt: key.expiresAt,
+          lastUsedAt: key.lastUsedAt,
+          createdAt: key.createdAt,
+          createdBy: key.createdBy
+        }))
+      };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['API Keys'],
+      summary: 'List API keys',
+      description: 'List all API keys (secrets are never returned after creation)'
+    }
+  })
+
+  /**
+   * DELETE /api/api-keys/:id
+   * Revoke an API key
+   */
+  .delete('/api/api-keys/:id', async ({ params, set }) => {
+    try {
+      await prisma.apiKey.delete({
+        where: { id: params.id }
+      });
+
+      return { success: true, message: 'API key revoked' };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['API Keys'],
+      summary: 'Revoke API key',
+      description: 'Permanently revoke an API key'
+    }
+  })
+
+  /**
+   * PUT /api/api-keys/:id/enable
+   * Enable an API key
+   */
+  .put('/api/api-keys/:id/enable', async ({ params, set }) => {
+    try {
+      await prisma.apiKey.update({
+        where: { id: params.id },
+        data: { enabled: true }
+      });
+
+      return { success: true, message: 'API key enabled' };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['API Keys'],
+      summary: 'Enable API key',
+      description: 'Enable a disabled API key'
+    }
+  })
+
+  /**
+   * PUT /api/api-keys/:id/disable
+   * Disable an API key
+   */
+  .put('/api/api-keys/:id/disable', async ({ params, set }) => {
+    try {
+      await prisma.apiKey.update({
+        where: { id: params.id },
+        data: { enabled: false }
+      });
+
+      return { success: true, message: 'API key disabled' };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['API Keys'],
+      summary: 'Disable API key',
+      description: 'Temporarily disable an API key without deleting it'
+    }
+  })
+  ) // End of admin-protected routes
+
+  // ============================================================================
+  // PROTECTED ROUTES - Require API Key Authentication
   // ============================================================================
 
   .guard({
-    beforeHandle: requireAuth
+    beforeHandle: requireApiKey
   }, (app) => app
 
     // ============================================================================
@@ -535,6 +829,13 @@ const app = new Elysia()
         description: 'Query access requests from audit logs with optional filtering by requester, time range, and status. **Requires authentication.**'
       }
     })
+  ) // End of API key protected routes
+
+  // ============================================================================
+  // ADMIN-ONLY ROUTES (Audit Logs, Policies, Stats, Keys Status)
+  // ============================================================================
+
+  .guard({ beforeHandle: requireAdmin }, (app) => app
 
     // ============================================================================
     // AUDIT LOG MANAGEMENT
@@ -768,37 +1069,43 @@ const app = new Elysia()
         description: 'Disable a policy. **Requires authentication.**'
       }
     })
+  ) // End of admin-only routes (temporarily)
 
-    // ============================================================================
-    // KEY MANAGEMENT
-    // ============================================================================
+  // ============================================================================
+  // PUBLIC KEY ENDPOINT (Public - for encryption)
+  // ============================================================================
 
-    .get('/api/keys/master-public', async ({ set }) => {
-      try {
-        const publicKey = await kms.getMasterPublicKey();
+  .get('/api/keys/master-public', async ({ set }) => {
+    try {
+      const publicKey = await kms.getMasterPublicKey();
 
-        return {
-          publicKey,
-          algorithm: 'ECDH',
-          curve: 'P-256',
-          usage: 'Distribute this public key to DataSources for encryption',
-          createdAt: kms.getStatus().keyCreatedAt
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          error: 'Internal server error',
-          message: error instanceof Error ? error.message : String(error)
-        };
-      }
-    }, {
-      detail: {
-        tags: ['Keys'],
-        summary: 'Get master public key',
-        description: 'Retrieve the master public key for distribution to DataSources. **Requires authentication.**'
-      }
-    })
+      return {
+        publicKey,
+        algorithm: 'ECDH',
+        curve: 'P-256',
+        usage: 'Distribute this public key to DataSources for encryption',
+        createdAt: kms.getStatus().keyCreatedAt
+      };
+    } catch (error) {
+      set.status = 500;
+      return {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, {
+    detail: {
+      tags: ['Keys'],
+      summary: 'Get master public key',
+      description: 'Retrieve the master public key for distribution to DataSources. This is a public endpoint.'
+    }
+  })
 
+  // ============================================================================
+  // KEY STATUS (Admin-only)
+  // ============================================================================
+
+  .guard({ beforeHandle: requireAdmin }, (app) => app
     .get('/api/keys/status', () => {
       try {
         const status = kms.getStatus();
@@ -888,7 +1195,7 @@ const app = new Elysia()
       }
     })
 
-  ) // End of protected routes guard
+  ) // End of admin-only routes
 
   .listen(3001);
 
@@ -899,5 +1206,5 @@ console.log(
   `🦊 ChronoCrypt KMS Backend is running at ${app.server?.hostname}:${app.server?.port}`
 );
 console.log(`📚 Swagger UI: http://localhost:3001/swagger`);
-console.log(`🔐 Authentication enabled - Admin user: ${ADMIN_USERNAME}`);
+console.log(`🔑 API Key authentication enabled`);
 console.log(`📖 API Documentation: http://localhost:3001/`);

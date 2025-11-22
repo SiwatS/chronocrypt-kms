@@ -2,44 +2,49 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { client } from '@/lib/eden-client';
+import { useAdmin } from '@/contexts/AdminContext';
 
 export default function Dashboard() {
   const router = useRouter();
+  const { isAuthenticated, username, loading: authLoading, logout } = useAdmin();
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
-  const [user, setUser] = useState<{ username: string } | null>(null);
-  const [setupWarning, setSetupWarning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
-    // Refresh every 30 seconds
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!authLoading && isAuthenticated) {
+      loadData();
+      // Refresh every 30 seconds
+      const interval = setInterval(loadData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [authLoading, isAuthenticated]);
 
   const loadData = async () => {
+    const sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) return;
+
     try {
-      const [statsRes, healthRes, auditRes, sessionRes, setupRes] = await Promise.all([
-        api.api.stats.get(),
-        api.api.health.get(),
-        api.api['audit-logs'].get({ query: { limit: '10' } }),
-        api.api.auth.session.get(),
-        api.api.auth['setup-required'].get()
+      const [statsRes, healthRes, auditRes] = await Promise.all([
+        client.api.stats.get({
+          headers: { Authorization: `Bearer ${sessionId}` }
+        }),
+        client.api.health.get(),
+        client.api['audit-logs'].get({
+          query: { limit: '10' },
+          headers: { Authorization: `Bearer ${sessionId}` }
+        })
       ]);
 
       if (statsRes.error) throw new Error('Failed to load stats');
       if (healthRes.error) throw new Error('Failed to load health');
-      if (auditRes.error) throw new Error('Failed to load audit logs');
 
       setStats(statsRes.data);
       setHealth(healthRes.data);
-      setRecentActivity(auditRes.data?.entries || []);
-      setUser(sessionRes.data?.user || null);
-      setSetupWarning(setupRes.data?.setupRequired || false);
+      setRecentActivity(auditRes.data && 'entries' in auditRes.data ? auditRes.data.entries : []);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -48,18 +53,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await api.api.auth.logout.post();
-      if (!error) {
-        router.push('/login');
-      }
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
-
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="container">
         <div className="loading">
@@ -91,7 +85,13 @@ export default function Dashboard() {
   return (
     <div className="container">
       <main className="dashboard">
-        {setupWarning && (
+        <div className="header">
+          <div className="user-info">
+            <span className="username">Logged in as: {username}</span>
+            <button onClick={logout} className="logout-button">Logout</button>
+          </div>
+        </div>
+        {false && (
           <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
             <h3 style={{ color: '#92400e', margin: '0 0 0.5rem 0' }}>⚠️ Setup Required</h3>
             <p style={{ color: '#92400e', margin: 0 }}>
@@ -276,20 +276,24 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <section className="actions-section">
           <h2>Quick Actions</h2>
-          <div className="actions-grid">
-            <button className="action-button">
+          <div className="action-buttons">
+            <button className="action-button" onClick={() => router.push('/requesters')}>
+              <span className="action-icon">👥</span>
+              <span>Manage Requesters</span>
+            </button>
+            <button className="action-button" onClick={() => router.push('/audit-logs')}>
               <span className="action-icon">📊</span>
               <span>View Full Audit Log</span>
             </button>
-            <button className="action-button">
+            <button className="action-button" onClick={() => router.push('/policies')}>
               <span className="action-icon">🔒</span>
               <span>Manage Policies</span>
             </button>
-            <button className="action-button">
+            <button className="action-button" onClick={() => router.push('/keys')}>
               <span className="action-icon">🔑</span>
               <span>View Master Key</span>
             </button>
-            <button className="action-button">
+            <button className="action-button" onClick={() => router.push('/statistics')}>
               <span className="action-icon">📈</span>
               <span>Export Statistics</span>
             </button>

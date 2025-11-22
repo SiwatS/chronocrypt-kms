@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AdminProvider } from '@/contexts/AdminContext';
 
 export const metadata: Metadata = {
   title: 'ChronoCrypt KMS',
@@ -13,7 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AdminProvider>
+          {children}
+        </AdminProvider>
+      </body>
     </html>
   );
 }
