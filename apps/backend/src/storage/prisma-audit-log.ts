@@ -6,6 +6,7 @@
 
 import type { AuditLogEntry, AuditLogStorage, TimeRange } from '@siwats/chronocrypt';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export class PrismaAuditLog implements AuditLogStorage {
   /**
@@ -22,7 +23,7 @@ export class PrismaAuditLog implements AuditLogStorage {
         startTime: entry.timeRange?.startTime,
         endTime: entry.timeRange?.endTime,
         success: entry.success,
-        details: entry.details as Prisma.JsonValue,
+        details: entry.details,
       },
     });
   }
@@ -163,7 +164,7 @@ export class PrismaAuditLog implements AuditLogStorage {
   /**
    * Convert Prisma model to AuditLogEntry
    */
-  private toAuditLogEntry(entry: { id: string; timestamp: bigint; eventType: string; actor: string; target: string | null; startTime: bigint | null; endTime: bigint | null; success: boolean; details: Prisma.JsonValue }): AuditLogEntry {
+  private toAuditLogEntry(entry: { id: string; timestamp: bigint; eventType: string; actor: string; target: string | null; startTime: bigint | null; endTime: bigint | null; success: boolean; details: unknown }): AuditLogEntry {
     return {
       id: entry.id,
       timestamp: Number(entry.timestamp),

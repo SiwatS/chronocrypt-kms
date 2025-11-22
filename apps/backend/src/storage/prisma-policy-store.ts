@@ -5,6 +5,7 @@
  */
 
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import type { PolicyConfig } from '../services/kms';
 
 export class PrismaPolicyStore {
@@ -44,7 +45,7 @@ export class PrismaPolicyStore {
         type: policy.type,
         priority: policy.priority || 0,
         enabled: policy.enabled,
-        config: policy.config as Prisma.JsonValue,
+        config: policy.config,
         description: policy.description,
       },
       update: {
@@ -52,7 +53,7 @@ export class PrismaPolicyStore {
         type: policy.type,
         priority: policy.priority || 0,
         enabled: policy.enabled,
-        config: policy.config as Prisma.JsonValue,
+        config: policy.config,
         description: policy.description,
       },
     });
@@ -146,11 +147,11 @@ export class PrismaPolicyStore {
   /**
    * Convert Prisma model to PolicyConfig
    */
-  private toPolicyConfig(policy: { id: string; name: string; type: string; priority: number; enabled: boolean; config: Prisma.JsonValue; description: string | null }): PolicyConfig {
+  private toPolicyConfig(policy: { id: string; name: string; type: string; priority: number; enabled: boolean; config: unknown; description: string | null }): PolicyConfig {
     return {
       id: policy.id,
       name: policy.name,
-      type: policy.type,
+      type: policy.type as PolicyConfig['type'],
       priority: policy.priority,
       enabled: policy.enabled,
       config: policy.config as Record<string, unknown> | undefined,

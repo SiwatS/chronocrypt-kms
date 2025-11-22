@@ -5,6 +5,7 @@
  */
 
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import type { AccessRequest, AccessResponse } from '@siwats/chronocrypt';
 
 export interface AccessRequestRecord {
@@ -31,7 +32,7 @@ export class PrismaAccessRequestStore {
         startTime: request.timeRange.startTime,
         endTime: request.timeRange.endTime,
         purpose: request.purpose,
-        metadata: request.metadata as Prisma.JsonValue,
+        metadata: request.metadata,
         granted: response.granted,
         denialReason: response.denialReason,
         keyCount: response.privateKeys ? response.privateKeys.size : undefined,
@@ -52,7 +53,7 @@ export class PrismaAccessRequestStore {
     limit?: number;
     offset?: number;
   }): Promise<{ requests: AccessRequestRecord[]; total: number }> {
-    const where: Prisma.AccessRequestWhereInput = {};
+    const where: Record<string, unknown> = {};
 
     if (options?.requesterId) {
       where.requesterId = options.requesterId;
@@ -134,7 +135,7 @@ export class PrismaAccessRequestStore {
   /**
    * Convert Prisma model to AccessRequestRecord
    */
-  private toAccessRequestRecord(record: { id: string; requesterId: string; startTime: bigint; endTime: bigint; purpose: string | null; metadata: Prisma.JsonValue; granted: boolean; denialReason: string | null; keyCount: number | null; createdAt: Date }): AccessRequestRecord {
+  private toAccessRequestRecord(record: { id: string; requesterId: string; startTime: bigint; endTime: bigint; purpose: string | null; metadata: unknown; granted: boolean; denialReason: string | null; keyCount: number | null; createdAt: Date }): AccessRequestRecord {
     return {
       id: record.id,
       requesterId: record.requesterId,

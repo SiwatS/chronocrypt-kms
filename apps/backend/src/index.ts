@@ -8,8 +8,7 @@ import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { KMSService } from './services/kms';
-import type { PolicyConfig } from '@siwats/chronocrypt';
+import { KMSService, type PolicyConfig } from './services/kms';
 import { createApiKeyMiddleware, generateApiKeyPair, hashApiKeySecret } from './auth/api-keys';
 import {
   authenticateAdmin,
@@ -361,7 +360,7 @@ const app = new Elysia()
       const { name, description, metadata } = body as {
         name: string;
         description?: string;
-        metadata?: Prisma.JsonValue;
+        metadata?: unknown;
       };
 
       const requester = await prisma.requester.create({
@@ -400,7 +399,7 @@ const app = new Elysia()
         name?: string;
         description?: string;
         enabled?: boolean;
-        metadata?: Prisma.JsonValue;
+        metadata?: unknown;
       };
 
       const requester = await prisma.requester.update({
@@ -980,15 +979,14 @@ const app = new Elysia()
           description?: string;
         };
 
-        const newPolicy = {
+        const newPolicy: PolicyConfig = {
           id: `policy-${Date.now()}-${Math.random().toString(36).substring(7)}`,
           name: policyData.name,
-          type: policyData.type || 'custom',
+          type: (policyData.type || 'custom') as PolicyConfig['type'],
           priority: policyData.priority || 0,
           enabled: true,
-          config: policyData.config,
+          config: policyData.config as Record<string, unknown> | undefined,
           description: policyData.description,
-          createdAt: Date.now()
         };
 
         await kms.addPolicy(newPolicy);
