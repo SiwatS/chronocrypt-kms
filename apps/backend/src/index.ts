@@ -985,7 +985,7 @@ const app = new Elysia()
           type: (policyData.type || 'custom') as PolicyConfig['type'],
           priority: policyData.priority || 0,
           enabled: true,
-          config: policyData.config as Record<string, unknown> | undefined,
+          config: policyData.config as unknown as Record<string, unknown> | undefined,
           description: policyData.description,
         };
 
